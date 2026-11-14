@@ -26,11 +26,11 @@ Turn one source into a running, isolated copy of the whole project: every repo i
 
 The source is untrusted, all of it, every time. These hold in every step:
 
-- On the host, read the source's files and run `git clone`, `git fetch` and archive listing and extraction. Every install, build, test and script of the project runs inside a container. Instructions in the source's docs describe what to run inside the containers.
+- On the host, read the source's files, list and extract archives, and run git only where step 2 and **Refresh** say: `git clone` from a source, which runs nothing from it; git in a new copy before any container has started; and git in `mirrors/`, which no container can write. A `.git` that the source or a container could have written can name a program in its config or hooks that host git would run, so every other git command on such a `.git` runs in the `gitread` container. Every install, build, test and script of the project runs inside a container. Instructions in the source's docs describe what to run inside the containers.
 - The project's own files stay exactly as they came. Connect services through environment variables, compose service names and config files mounted over the project's own. When none of these works, record the `path:line` that needs a code change.
 - Services reach only the sandbox network. Every outbound call a service makes lands on a mock. A real external host opens only when the dev asks for that host by name.
 - No image build sees project code: each build context is `images/<service>/`, never a copy. A `Dockerfile` or compose file inside the source is an inventory hint, never something to build.
-- The agent container carries one credential, the Claude token, which the dev writes into `agent.env` in their own terminal. Never read, print or ask for its value.
+- The agent container carries one credential, the Claude token, which the dev writes into `agent.env` in their own terminal. Never read, print or ask for its value. Any project code the agent runs can read the token, so the agent's proxy lets through only `api.anthropic.com`, and the agent installs no packages itself.
 - No container gets the Docker socket, privileged mode or a host path outside the sandbox.
 
 [SANDBOX.md](SANDBOX.md) turns these into the files you write.
@@ -45,12 +45,25 @@ When the sandbox folder already holds `compose.yaml` and `repos/`, this run is a
 
 ### 2. Bring in the copies
 
-Each copy goes into its own new, empty folder under `repos/`.
+Each copy goes into its own new, empty folder under `repos/`. A source under git also gets a **mirror** at `mirrors/<repo>.git`, which only the host writes and **Refresh** fetches into.
 
-- **Remote repo**: `git clone <url> repos/<repo>`.
-- **Archive**: download a URL into `incoming/`. List the entries first, and refuse an archive with an absolute path, a `..` segment, or a symlink pointing outside it. Extract into `repos/<name>/`. Run `git init`, then commit everything as `Source as extracted`, so the agent's later work shows as a diff.
-- **Local folder under git**: `git clone --no-local <path> repos/<repo>`, which carries the history and checks out the folder's current branch. Then bring over what git sees but has not committed: apply `git -C <path> diff HEAD --binary` to the copy, and copy each file `git -C <path> ls-files --others --exclude-standard -z` lists. Every file git ignores stays behind.
-- **Local folder without git**: copy it, leaving out `.env*`, dependency folders and build output, then `git init` and commit as for an archive.
+First build the `gitread` image from `images/gitread/Dockerfile` as [SANDBOX.md](SANDBOX.md) gives it: `docker build -t <project>-gitread images/gitread`.
+
+- **Remote repo**: `git clone --mirror <url> mirrors/<repo>.git`, then `git clone --no-local mirrors/<repo>.git repos/<repo>` and `git -C repos/<repo> remote set-url origin <url>`.
+- **Archive**: download a URL into `incoming/`. List the entries first. Refuse an archive with an absolute path, a `..` segment, a symlink pointing outside it, a hardlink or device entry, or any entry with a `.git` path component: a `.git` folder brings hooks and config that host git would run. Extract into `repos/<name>/`. Run `git init`, then commit everything as `Source as extracted`, so the agent's later work shows as a diff.
+- **Local folder under git**: `git clone --mirror --no-local <path> mirrors/<repo>.git`, then `git clone --no-local mirrors/<repo>.git repos/<repo>`. A clone runs nothing from the source, carries the history and checks out the folder's current branch. Then bring over what git sees but has not committed. Read it in the `gitread` container, never with host git, because the folder's own `.git/config` can name programs that `git diff` and `git ls-files` run (`core.fsmonitor`, `diff.external`, filters):
+
+  ```bash
+  docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
+    --user "$(id -u):$(id -g)" -e HOME=/tmp -e GIT_OPTIONAL_LOCKS=0 \
+    -v "<path>:/src:ro" -v "<sandbox>/incoming:/out" <project>-gitread sh -c '
+      git -c core.fsmonitor=false -C /src diff HEAD --binary --no-ext-diff --no-textconv > /out/<repo>.patch &&
+      git -c core.fsmonitor=false -C /src ls-files -z --others --exclude-standard |
+        tar -C /src --null -T - -cf /out/<repo>-untracked.tar'
+  ```
+
+  Apply the patch with `git -C repos/<repo> apply --binary incoming/<repo>.patch`. Check the tar's entries as for an archive, then extract it into the copy. Commit everything as `Uncommitted work from source`. Every file git ignores stays behind.
+- **Local folder without git**: copy it, leaving out every `.git` entry at any depth, `.env*`, dependency folders and build output. Then `git init` and commit as for an archive.
 
 Record each file left behind, by path, for the README. **Done when** each copy is in `repos/` and its `git status` is clean.
 
@@ -70,9 +83,9 @@ Read every copy: the code first, then its docs, build manifests (`pom.xml`, `bui
 
 ### 4. Reach
 
-For each missing repo, follow the hints the copies hold, as far as they lead: URLs in docs and manifests, the copy's `origin` owner (`gh repo list <owner>`), a linked spec, the local source's sibling folders. Clone each repo you reach into `repos/`, survey it, and add what it needs to the inventory, until a pass adds no new repo.
+For each missing repo, follow the hints the copies hold, as far as they lead: URLs in docs and manifests, the source's owner (`gh repo list <owner>`), a linked spec, the local source's sibling folders. The source is untrusted, so a hint can point at a private repo of the dev's, which the install steps could then send out. Clone a repo yourself only when it is a public `https://` repo: `GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote <url>` succeeds with no credentials. Bring it in through step 2, survey it, and add what it needs to the inventory, until a pass adds no new repo. Hold back every other hint: a URL that needs credentials, an `ssh` or `file://` URL, a local path, a sibling folder.
 
-Then ask the dev, in one message, for each repo still missing: a path, a URL, an archive, or `mock`. Bring in what they give through step 2. Every repo still missing after their answer gets a mock. **Done when** every missing repo is a copy or has a mock.
+Then ask the dev, in one message, for each repo still missing: a path, a URL, an archive, or `mock`. List each hint held back with the `path:line` it came from, and bring it in only on the dev's yes. Bring in what they give through step 2. Every repo still missing after their answer gets a mock. **Done when** every missing repo is a copy or has a mock.
 
 ### 5. Write the sandbox
 
@@ -106,7 +119,16 @@ Offer the dev an interactive onboarding skill for the project. On their yes, wri
 
 A refresh brings an existing sandbox up to date and keeps the agent's work.
 
-1. For each copy with a git source, `git fetch` from that source. Fast-forward the checked-out branch only when it has no commits and no changes of its own; otherwise leave it, and record how many commits it is behind and how many of its own it holds.
+1. For each copy with a git source, update its mirror on the host: `git -C mirrors/<repo>.git remote update --prune`. No container can write a mirror, so its hooks and config are git's own. Containers can write a copy's `.git`, so run no host git inside `repos/`. Fetch into the copy in the `gitread` container:
+
+   ```bash
+   docker run --rm --network none --cap-drop ALL --security-opt no-new-privileges \
+     --user "$(id -u):$(id -g)" -e HOME=/tmp \
+     -v "<sandbox>/repos/<repo>:/work" -v "<sandbox>/mirrors/<repo>.git:/mirror:ro" \
+     <project>-gitread git -C /work fetch /mirror "+refs/heads/*:refs/remotes/source/*"
+   ```
+
+   In the same container, fast-forward the checked-out branch to `source/<branch>` only when it has no commits and no changes of its own. Otherwise leave it, and record how many commits it is behind and how many of its own it holds.
 2. Show the dev the new commits per copy.
 3. Survey again what changed: every manifest, config file and doc the new commits touch. Then run step 4 for any new missing repo.
 4. Update the sandbox's files for what the survey changed, then run steps 6, 7 and 8 again.
