@@ -4,7 +4,7 @@
 
 `skill-protocols/` holds guidance that complements one skill. The portable protocols currently cover `domain-modeling`, `grill-with-docs`, `grilling`, and `retro`. A protocol never changes the steps, order, or output format of that skill. Each protocol's first line is the marker `<!-- managed by dev-skills: agent-rules/skill-protocols/<name>.md -->`, which tells a managed copy from a workspace's own file.
 
-`platforms/` holds settings fragments. The skill merges a fragment only where the platform supports it, into the workspace's personal settings (`.claude/settings.local.json` for Claude Code), and preserves workspace-owned settings.
+`platforms/` holds settings fragments. The skill merges a fragment only where the platform supports it, into the workspace's personal settings (`.claude/settings.local.json` for Claude Code), and preserves workspace-owned settings. `platforms/claude-code.json` denies `AskUserQuestion` and `mcp__ccd_turn__wrap_up` because the dev prefers not to use them; agents ask in plain chat instead. That is a personal preference, which is why the fragment goes into personal settings and not into a workspace's shared ones.
 
 `templates/` contains the local files created for a fresh workspace. `WORKSPACE.md` is local orientation. `MEMORY.md` is a tombstone.
 
