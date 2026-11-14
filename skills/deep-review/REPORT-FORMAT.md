@@ -5,7 +5,7 @@ Fill every `<…>`. IDs run `M1`, `M2`… for Must Fix, `S1`… for Should Fix, 
 ```markdown
 # Deep review: <repository>[/<target path>]
 
-Commit `<sha>` · <YYYY-MM-DD> · <n> parts · <m> Must Fix · <s> Should Fix · <c> Could Fix · <d> dropped by verification
+Commit `<sha>`, `<sha> + uncommitted changes` or `no git` · <YYYY-MM-DD> · <n> parts · <m> Must Fix · <s> Should Fix · <c> Could Fix · <d> dropped by verification
 
 ## 1. Architecture
 
@@ -42,9 +42,11 @@ Commit `<sha>` · <YYYY-MM-DD> · <n> parts · <m> Must Fix · <s> Should Fix ·
 
 ## 3. Coverage
 
-| Part | Paths | Files | Lines |
-|---|---|---|---|
-| <part> | `<paths>` | <files> | <lines> |
+| Part | Paths | Files | Read in full | Lines |
+|---|---|---|---|---|
+| <part> | `<paths>` | <files> | <files read in full> | <lines> |
 
-Rule sources: `<path>`, `<path>`. Dimensions skipped: <dimensions and why, or none>.
+Not read in full: <path, comma-separated, or none>.
+
+Rule sources: `<path>`, `<path>`. Dimensions skipped: <dimensions and why, or none>. Issues: <matched against <n> open issues, or not matched: reason>.
 ```

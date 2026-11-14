@@ -22,6 +22,8 @@ A **finding** is one problem at one place in the code. Every Must Fix and Should
 
 A Could Fix finding is one line: what to change, and its `path:line`.
 
+Never quote a secret's value in a finding. Give its `path:line` and its kind, such as `AWS access key`.
+
 ### Buckets
 
 - **Must Fix**: data, money, a secret or a running service is at risk now. Wrong output on a production path, a leaked key, an injection, a crash at startup, lost data.
@@ -46,7 +48,10 @@ Skip 6 and 7 when the target documents nothing for them. Skip what a linter or f
 
 ### 1. Pin the target
 
-The target is the repository or directory the dev named. With no target, ask for one. Record the repository root, the target path inside it, and `git rev-parse HEAD`.
+The target is the repository or directory the dev named. With no target, ask for one. Record the repository root, the target path inside it, and `git rev-parse HEAD`, then save `git status --porcelain` for step 8.
+
+- When the target is in no git repository, record `no git` in place of the commit, and skip step 7 and the filing in step 9.
+- When `git status --porcelain -- <target path>` is not empty, the sub-agents read uncommitted code: record the commit as `<sha> + uncommitted changes`.
 
 ### 2. Read the target's rules
 
@@ -54,16 +59,19 @@ Find and read every file that says how code there is written or decided: `CLAUDE
 
 ### 3. Map the parts
 
-Split the target into at most 8 **parts** along its top-level modules or directories, grouping small ones together. Leave out vendored code, generated code, lockfiles and build output. Done when every remaining source and test file belongs to exactly one part, and each part has its paths, file count and line count.
+Split the target into **parts** along its top-level modules or directories, grouping small ones together. Keep each part under about 15,000 lines, so one sub-agent can read all of it. Use at most 8 parts; when the target needs more, ask the dev whether to review one directory of it, or to run more parts. Leave out vendored code, generated code, lockfiles and build output. Every other file is in scope: source, tests, config, infrastructure, CI workflows, migrations and scripts. Done when every in-scope file belongs to exactly one part, and each part has its paths, file count and line count.
 
 ### 4. Review each part
 
 Dispatch one sub-agent per part, all in one message, in the foreground. Each brief carries:
 
 - the part's paths, the repository root and the commit;
-- the rule sources' paths;
+- the rule sources' paths, whether the target serves HTTP, and the dimensions to skip with the reason;
 - the whole **Findings** section above, pasted in full;
-- the task: read every file in the part in full; check all seven dimensions; return every finding with its fields, a three-sentence account of what the part does and how it is built, and a list of **leads**: calls into other parts whose behaviour looks wrong from this side.
+- the rule: change no file, ticket or label;
+- the task: read every file in the part in full; check every dimension not skipped; return every finding with its fields, a three-sentence account of what the part does and how it is built, a list of **leads** (calls into other parts whose behaviour looks wrong from this side), and the list of files it read in full.
+
+Compare each part's list of files read with step 3's. Record every file not read in full for the report's Coverage table.
 
 ### 5. Read across the parts
 
@@ -71,7 +79,14 @@ From the parts' accounts and leads, work out the target's architecture: its patt
 
 ### 6. Verify
 
-Split the Must Fix and Should Fix findings across at most 4 sub-agents, dispatched in one message. Each one tries to **disprove** every finding it holds: it reads the cited code and its callers, and may run the target's existing tests. It returns one verdict per finding:
+Split the Must Fix and Should Fix findings across at most 4 sub-agents, dispatched in one message. Each brief carries:
+
+- the repository root, the commit and the rule sources' paths;
+- the whole **Findings** section above, pasted in full, so the buckets mean the same to every verifier;
+- its findings, each with all its fields;
+- the rule: change no file, ticket or label. Run only the target's tests that need no network and no external service, and never a command that updates snapshots, migrates or seeds.
+
+Each one tries to **disprove** every finding it holds: it reads the cited code and its callers, and may run those tests. It returns one verdict per finding:
 
 - **confirmed**: the failure scenario follows from the code;
 - **moved**: the problem is real and belongs in another bucket; give the bucket;
@@ -81,12 +96,20 @@ Done when every Must Fix and Should Fix finding has a verdict. Count the dropped
 
 ### 7. Match open issues
 
-List the target repository's open issues with `gh issue list --state open --limit 500 --json number,title,body`. Give each finding that an open issue already reports that issue's number.
+List the open issues in the tracker that step 2 found. With no tracker named, use `gh issue list --state open --limit 500 --json number,title,body`. When that returns 500, search each finding's name with `gh issue list --state open --search "<name>"` as well. Give each finding that an open issue already reports that issue's number.
+
+When the listing fails (no remote, no `gh`, issues turned off), record `Issues not matched: <reason>` for the report and go on.
 
 ### 8. Write the report
 
 Write `docs/reviews/<YYYY-MM-DD>-deep-review.md` at the repository root, in the form [REPORT-FORMAT.md](REPORT-FORMAT.md) gives, with a `-2`, `-3` suffix when the name is taken. Leave it uncommitted.
 
+Then compare `git status --porcelain` with the one saved in step 1. When anything besides the report changed, tell the dev which files, in the summary.
+
 ### 9. Summarise and offer the issues
 
-Tell the dev, in chat: the report's path, the count per bucket, the dropped count, and each Must Fix finding in one line with its ID. Offer to file the findings the dev picks as issues. On the dev's yes to named IDs, file each one the way the target's tracker setup says, or with `gh issue create` when it says nothing: the finding's name as the title, its fields as the body. Offer no finding that already has an issue number.
+Tell the dev, in chat: the report's path, the count per bucket, the dropped count, and each Must Fix finding in one line with its ID. Offer to file the findings the dev picks as issues. Offer no finding that already has an issue number.
+
+Before filing, check who can read the tracker, for GitHub with `gh repo view --json visibility`. In a public tracker, file no Security finding as an issue. Offer it as a draft repository security advisory, which only maintainers see, or leave it in the report.
+
+On the dev's yes to named IDs, show each issue body, then file it the way the target's tracker setup says, or with `gh issue create` when it says nothing: the finding's name as the title, its fields as the body.
