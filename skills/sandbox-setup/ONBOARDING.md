@@ -10,13 +10,13 @@ From the inventory and the code, list the project's **cases**: each thing a user
 
 ## What to write
 
-Write `<sandbox>/.claude/skills/onboard-<project>/SKILL.md`, with `CASES.md` beside it holding the cases. Its frontmatter sets `disable-model-invocation: true` and a one-line description. Its body tells the agent running it to:
+Write `<sandbox>/repos/.claude/skills/onboard-<project>/SKILL.md`, with `CASES.md` beside it holding the cases. The agent container sees `repos/` as its working folder `/work`, so the tour runs there, where an instruction planted in a copy reaches no host shell. A tour run with `claude` on the host would read the untrusted copies with a host shell. Its frontmatter sets `disable-model-invocation: true` and a one-line description. Its body tells the agent running it to:
 
 1. Open with the project's purpose and a map of its services, dependencies and mocks, in five lines at most.
-2. Take the cases in order, one per round. In each round, show the case's next step: the file and lines that do it, and a live probe of the sandbox that makes it visible, such as a `curl` to the ingress port, a query to the database, or a `docker compose logs` line. Then ask the dev one question whose answer predicts the step after.
+2. Take the cases in order, one per round. In each round, show the case's next step: the file and lines that do it, and a live probe of the sandbox that makes it visible, such as a `curl` to a service by its compose name, or a query with a database client the agent image holds. For a log line, give the dev the `docker compose logs` command to run in their own terminal, because the agent container has no Docker socket. Then ask the dev one question whose answer predicts the step after.
 3. Correct a wrong prediction from the code, then move on. Let the dev ask to slow down, skip ahead, or open any file.
 4. End a case by asking the dev to trace it back in their own words, then offer the next one.
 
-Probe with what a user can do and what an operator can read: requests through the ingress ports, `SELECT` queries and logs. The copies stay as the onboarding found them.
+Probe with what a user can do and what an operator can read: requests to the services, `SELECT` queries and logs. The copies stay as the onboarding found them.
 
-Add one line to the sandbox README, under **Work on it with an agent**: `For a guided tour, run claude in <sandbox path> and type /onboard-<project>.`
+Add one line to the sandbox README, under **Work on it with an agent**: `For a guided tour, run docker compose exec agent claude and type /onboard-<project>.`
