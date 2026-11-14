@@ -47,7 +47,9 @@ Open <the URL a user starts at>. Log in as:
 1. Run `claude setup-token` in your terminal, and put the token after `CLAUDE_CODE_OAUTH_TOKEN=` in `agent.env`.
 2. `docker compose up -d agent`, then `docker compose exec agent claude`.
 
-The agent sees every copy at `/work/<repo>`. Its edits reach the running services at once. It reaches only the Anthropic API, the package registries and the git hosts, and holds no git or GitHub credentials.
+The agent sees every copy at `/work/<repo>`. Its edits reach the running services at once. It reaches only the Anthropic API, and holds no git or GitHub credentials. It installs no packages: after it changes a manifest, run `docker compose run --rm <service>-install`.
+
+Any project code the agent runs, such as a test, can read its Claude token and use it against the Anthropic API. Use a token made for this sandbox only, and revoke it when you delete the sandbox.
 
 To take the agent's work back into your own checkout:
 
