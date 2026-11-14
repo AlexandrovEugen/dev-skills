@@ -1,3 +1,5 @@
+<!-- managed by dev-skills: agent-rules/skill-protocols/grilling.md -->
+
 # Grilling protocol
 
 Use this file only with an invoked grilling skill.

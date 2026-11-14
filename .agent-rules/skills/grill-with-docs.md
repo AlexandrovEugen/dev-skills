@@ -1,3 +1,5 @@
+<!-- managed by dev-skills: agent-rules/skill-protocols/grill-with-docs.md -->
+
 # Grill-with-docs protocol
 
 Use this file only with an invoked grill-with-docs skill.

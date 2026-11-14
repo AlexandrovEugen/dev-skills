@@ -1,3 +1,5 @@
+<!-- managed by dev-skills: agent-rules/skill-protocols/domain-modeling.md -->
+
 # Domain-modeling protocol
 
 Use this file only with an invoked domain-modeling skill.

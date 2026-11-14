@@ -1,3 +1,5 @@
+<!-- managed by dev-skills: agent-rules/skill-protocols/retro.md -->
+
 # Retro protocol
 
 Use this file only with an invoked retro skill.
