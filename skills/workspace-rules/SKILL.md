@@ -53,7 +53,7 @@ Use `pull <workspace-path> <workspace-name>` for a fresh workspace.
 4. Write `UNIVERSAL.md` exactly as `AGENTS.md` and `CLAUDE.md` at the workspace root.
 5. Write every central protocol into `<workspace-path>/.agent-rules/skills/`.
 6. Create `WORKSPACE.md` and `MEMORY.md` from the templates only when they do not exist.
-7. Merge each supported platform fragment into the workspace's personal settings, never into checked-in shared ones. For Claude Code, merge `platforms/claude-code.json` into `<workspace-path>/.claude/settings.local.json`: append missing denied permissions and keep every existing key and value. When the file exists and does not parse as strict JSON, leave it unchanged and report it. In a git workspace where `git check-ignore -q .claude/settings.local.json` fails, add that path to `.git/info/exclude`.
+7. Merge each supported platform fragment into the workspace's personal settings, never into checked-in shared ones. For Claude Code, merge `platforms/claude-code.json` into `<workspace-path>/.claude/settings.local.json`: replace `<node>` with the output of `command -v node` and `<dev-skills>` with the dev-skills path, append missing denied permissions, append each hook group whose command no hook of that event already runs, and keep every existing key and value. When the file exists and does not parse as strict JSON, leave it unchanged and report it. In a git workspace where `git check-ignore -q .claude/settings.local.json` fails, add that path to `.git/info/exclude`.
 8. Add `<workspace-name>` and its absolute path to the registry, or update its path when the name already exists.
 9. Report every created or merged file and every local file left untouched.
 
