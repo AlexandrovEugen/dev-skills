@@ -6,14 +6,14 @@ disable-model-invocation: true
 
 # Deep review
 
-Review one target in full: every file read, every finding verified, every verified finding in the backlog. Leave the target's code, tickets and labels unchanged; the one file this skill writes is the report.
+Review one target in full: every file read, every finding verified, every verified finding in the backlog. Leave the target's code, existing tickets and labels unchanged. The one file this skill writes is the report, and it files issues only in step 9, on the dev's yes.
 
 ## Findings
 
 A **finding** is one problem at one place in the code. Every Must Fix and Should Fix finding carries these fields:
 
 - **Name**: the problem in a few words.
-- **Location**: `path:line`, a line read in this run.
+- **Location**: `path:line`, the path relative to the repository root, a line read in this run.
 - **Dimension**: one of the seven below.
 - **Failure scenario**: concrete inputs → the wrong output, crash or leak they cause. Example: `POST /orders` with `quantity=0.5` → the row stores `5.0`.
 - **Impact**: what breaks, for whom.
@@ -55,11 +55,11 @@ The target is the repository or directory the dev named. With no target, ask for
 
 ### 2. Read the target's rules
 
-Find and read every file that says how code there is written or decided: `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `CODING_STANDARDS.md`, the docs they point to, `docs/adr/`, `GLOSSARY.md` or `CONTEXT.md`, and the tracker setup they name. Done when you hold a list of these paths, the **rule sources**, and know whether the target serves HTTP.
+Find and read every file that says how code there is written or decided: `CLAUDE.md` and `AGENTS.md` at the root and inside the target, `WORKSPACE.md`, `.agent-rules/skills/deep-review.md`, `CONTRIBUTING.md`, `CODING_STANDARDS.md`, the docs they point to, `docs/adr/`, `GLOSSARY.md` or `CONTEXT.md`, and the tracker setup they name. Done when you hold a list of these paths, the **rule sources**, and know whether the target serves HTTP.
 
 ### 3. Map the parts
 
-Split the target into **parts** along its top-level modules or directories, grouping small ones together. Keep each part under about 15,000 lines, so one sub-agent can read all of it. Use at most 8 parts; when the target needs more, ask the dev whether to review one directory of it, or to run more parts. Leave out vendored code, generated code, lockfiles and build output. Every other file is in scope: source, tests, config, infrastructure, CI workflows, migrations and scripts. Done when every in-scope file belongs to exactly one part, and each part has its paths, file count and line count.
+Split the target into **parts** along its top-level modules or directories, grouping small ones together. Keep each part under about 15,000 lines, so one sub-agent can read all of it. Use at most 8 parts; when the target needs more, ask the dev whether to review one directory of it, or to run more parts. Leave out vendored code, generated code, lockfiles and build output. Every other file is in scope: source, tests, config, infrastructure, CI workflows, migrations and scripts. When the target holds no in-scope file, tell the dev and stop. Done when every in-scope file belongs to exactly one part, and each part has its paths, file count and line count.
 
 ### 4. Review each part
 
@@ -75,7 +75,7 @@ Compare each part's list of files read with step 3's. Record every file not read
 
 ### 5. Read across the parts
 
-From the parts' accounts and leads, work out the target's architecture: its pattern, its strengths and its weaknesses, each citing files. Open the code behind each lead. Add the findings that only show across parts: circular dependencies, one rule applied two ways, an error swallowed at a boundary.
+From the parts' accounts and leads, work out the target's architecture: its pattern, its strengths and its weaknesses, each citing files. Open the code behind each lead. When a lead points outside a directory target, note it under the architecture's weaknesses with its `path:line`, and add no finding for it. Add the findings that only show across parts: circular dependencies, one rule applied two ways, an error swallowed at a boundary.
 
 ### 6. Verify
 
@@ -108,7 +108,7 @@ Then compare `git status --porcelain` with the one saved in step 1. When anythin
 
 ### 9. Summarise and offer the issues
 
-Tell the dev, in chat: the report's path, the count per bucket, the dropped count, and each Must Fix finding in one line with its ID. Offer to file the findings the dev picks as issues. Offer no finding that already has an issue number.
+Tell the dev, in chat: the report's path, the count per bucket, the dropped count, each Must Fix finding in one line with its ID, and each Should Fix finding's ID and name. Offer to file the findings the dev picks as issues. Offer no finding that already has an issue number.
 
 Before filing, check who can read the tracker, for GitHub with `gh repo view --json visibility`. In a public tracker, file no Security finding as an issue. Offer it as a draft repository security advisory, which only maintainers see, or leave it in the report.
 
