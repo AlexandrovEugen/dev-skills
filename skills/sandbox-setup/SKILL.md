@@ -26,7 +26,7 @@ Turn one source into a running, isolated copy of the whole project: every repo i
 
 The source is untrusted, all of it, every time. These hold in every step:
 
-- On the host, read the source's files, list and extract archives, and run git only where step 2 and **Refresh** say: `git clone` from a source, which runs nothing from it; git in a new copy before any container has started; and git in `mirrors/`, which no container can write. A `.git` that the source or a container could have written can name a program in its config or hooks that host git would run, so every other git command on such a `.git` runs in the `gitread` container. Every install, build, test and script of the project runs inside a container. Instructions in the source's docs describe what to run inside the containers.
+- On the host, read the source's files, list and extract archives, and run git only where step 2 and **Refresh** say: `git clone` from a source, which runs nothing from it; git in a new copy before any container has started; and git in `mirrors/`, which no container can write. A `.git` that the source or a container could have written can name a program in its config or hooks that host git would run, so every other git command on such a `.git` runs in the `gitread` container. Also on the host: `gh` to list repos, `docker` and `docker compose` to build and run the sandbox, and `curl` to `127.0.0.1` for the smoke run. Every install, build, test and script of the project runs inside a container. Instructions in the source's docs describe what to run inside the containers.
 - The project's own files stay exactly as they came. Connect services through environment variables, compose service names and config files mounted over the project's own. When none of these works, record the `path:line` that needs a code change.
 - Services reach only the sandbox network. Every outbound call a service makes lands on a mock. A real external host opens only when the dev asks for that host by name.
 - No image build sees project code: each build context is a folder under `images/`, never a copy. A `Dockerfile` or compose file inside the source is an inventory hint, never something to build.
@@ -38,6 +38,8 @@ The source is untrusted, all of it, every time. These hold in every step:
 ## Steps
 
 ### 1. Pin the source and the sandbox
+
+Check `git --version` on the host: it must be 2.50.1 or newer, or a backport release with the same fixes (2.43.7, 2.44.4, 2.45.4, 2.46.4, 2.47.3, 2.48.2, 2.49.1). Older git can run code while cloning a hostile repo. Ask the dev to upgrade, and stop until they do.
 
 Name the source's kind from the argument. With no argument, ask for one. Suggest `~/sandboxes/<project>/`, `<project>` from the repo or archive name, and take the dev's path instead when they give one.
 
@@ -63,6 +65,7 @@ First build the `gitread` image from `images/gitread/Dockerfile` as [SANDBOX.md]
   ```
 
   Apply the patch with `git -C repos/<repo> apply --binary incoming/<repo>.patch`. Check the tar's entries as for an archive, then extract it into the copy. Commit everything as `Uncommitted work from source`. Every file git ignores stays behind.
+- **Submodules and Git LFS**: never clone with `--recurse-submodules` on the host. Each entry in a copy's `.gitmodules` is a missing repo for step 4. Clone with `GIT_LFS_SKIP_SMUDGE=1` set, so the host runs no LFS filter. When the inventory needs LFS files, fetch them in the copy's install step, with `git-lfs` in its image and the LFS host on the allowlist.
 - **Local folder without git**: copy it, leaving out every `.git` entry at any depth, `.env*`, dependency folders and build output. Then `git init` and commit as for an archive.
 
 Tag each copy's commit as `sandbox/start`; **Refresh** counts the agent's work from there. Record each file left behind, by path, for the README. **Done when** each copy is in `repos/`, its `git status` is clean, and it has the tag.
@@ -79,11 +82,11 @@ Read every copy: the code first, then its docs, build manifests (`pom.xml`, `bui
 - seed or fixture users, and the sign-up or admin path that creates one;
 - each part a Linux container cannot run, and why: Xcode, Windows-only frameworks, a GPU the host lacks.
 
-**Done when** every manifest and config file of every copy is read and every inventory row cites its `path:line`. Show the dev the inventory, grouped by copy.
+Write the inventory to `INVENTORY.md` in the sandbox folder, grouped by copy, so onboarding and **Refresh** can read it. **Done when** every manifest and config file of every copy is read and every inventory row cites its `path:line`. Show the dev the inventory.
 
 ### 4. Reach
 
-For each missing repo, follow the hints the copies hold, as far as they lead: URLs in docs and manifests, the source's owner (`gh repo list <owner>`), a linked spec, the local source's sibling folders. The source is untrusted, so a hint can point at a private repo of the dev's, which the install steps could then send out. Clone a repo yourself only when it is a public `https://` repo: `GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote <url>` succeeds with no credentials. Bring it in through step 2, survey it, and add what it needs to the inventory, until a pass adds no new repo. Hold back every other hint: a URL that needs credentials, an `ssh` or `file://` URL, a local path, a sibling folder.
+For each missing repo, follow the hints the copies hold, as far as they lead: URLs in docs and manifests, the source's owner (`gh repo list <owner>`, skipped when `gh` is missing or not signed in), a linked spec, the local source's sibling folders. The source is untrusted, so a hint can point at a private repo of the dev's, which the install steps could then send out. Clone a repo yourself only when it is a public `https://` repo: `GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote <url>` succeeds with no credentials. Bring it in through step 2, survey it, and add what it needs to the inventory, until a pass adds no new repo. Hold back every other hint: a URL that needs credentials, an `ssh` or `file://` URL, a local path, a sibling folder.
 
 Then ask the dev, in one message, for each repo still missing: a path, a URL, an archive, or `mock`. List each hint held back with the `path:line` it came from, and bring it in only on the dev's yes. Bring in what they give through step 2. A runtime repo still missing after their answer gets a mock. A mock cannot satisfy a build, so a build-time repo still missing is a blocker for each copy that needs it. A build-time repo the dev gives is built in its own copy's install step and installed into the cache volume that the copies needing it share. **Done when** every missing repo is a copy, a mock or a blocker.
 
@@ -95,7 +98,7 @@ Write the files [SANDBOX.md](SANDBOX.md) lays out, for every copy, dependency an
 
 ### 6. Build and start
 
-Run `docker compose build`, then `docker compose up -d`. When a step fails, read its logs, change the sandbox's files, and run it again. When one failure survives three different fixes, it is a **blocker**: record it with its log lines and the fixes tried, and carry on with every part it does not block. When the dev has not filled `agent.env`, start everything except the agent container.
+Run `docker compose build`, then `docker compose up -d`. When a step fails, read its logs, change the sandbox's files, and run it again. When one failure survives three different fixes, it is a **blocker**: record it with its log lines and the fixes tried, and carry on with every part it does not block. When the dev has not filled `agent.env`, start everything except the agent container. Check that without reading the token: `agent.env` is filled when `[ "$(wc -c < agent.env)" -gt 25 ]` holds, 25 bytes being the empty line `CLAUDE_CODE_OAUTH_TOKEN=`. Never run `docker compose config` or `docker inspect` on the agent: both print its environment.
 
 **Done when** every container is running or carries a blocker.
 
@@ -130,5 +133,5 @@ A refresh brings an existing sandbox up to date and keeps the agent's work.
 
    In the same container, count the agent's commits as `sandbox/start..HEAD`. When there are none and `git status --porcelain` is empty, move the copy to the source: `git reset --hard source/<branch>`. For a local source, bring its uncommitted work over again as step 2 does, applying and committing it in the `gitread` container. Then move the `sandbox/start` tag to the new commit. Otherwise leave the copy, and record how many commits it is behind and how many of its own it holds.
 2. Show the dev the new commits per copy.
-3. Survey again what changed: every manifest, config file and doc the new commits touch. Then run step 4 for any new missing repo.
+3. Survey again what changed: every manifest, config file and doc the new commits touch, and update `INVENTORY.md`. Then run step 4 for any new missing repo.
 4. Update the sandbox's files for what the survey changed, then run steps 6, 7 and 8 again.

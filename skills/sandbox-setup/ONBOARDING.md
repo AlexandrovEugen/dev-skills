@@ -4,7 +4,7 @@ An interactive skill, written for this one project, that onboards the dev step b
 
 ## What to gather
 
-From the inventory and the code, list the project's **cases**: each thing a user or a scheduler makes the system do, such as *a user places an order* or *the nightly job recomputes prices*. For each case, record its path through the system: the entry point, each service, dependency and mock it touches in order, each `path:line` that moves it on, and the data it leaves behind. Order the cases from the one that touches the fewest services to the one that touches the most.
+From `INVENTORY.md` and the code, list the project's **cases**: each thing a user or a scheduler makes the system do, such as *a user places an order* or *the nightly job recomputes prices*. For each case, record its path through the system: the entry point, each service, dependency and mock it touches in order, each `path:line` that moves it on, and the data it leaves behind. Order the cases from the one that touches the fewest services to the one that touches the most.
 
 **Done when** every service appears in at least one case, and every step of every case cites a `path:line`.
 

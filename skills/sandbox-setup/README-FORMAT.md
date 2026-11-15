@@ -51,7 +51,7 @@ The agent sees every copy at `/work/<repo>`. Its edits reach the running service
 
 Any project code the agent runs, such as a test, can read its Claude token and use it against the Anthropic API. Use a token made for this sandbox only, and revoke it when you delete the sandbox.
 
-To take the agent's work back into your own checkout:
+To take the agent's work back into your own checkout, with git 2.50.1 or newer: the agent can write that repo, and older git has had bugs that let a hostile repo run code during a clone or fetch.
 
 ```bash
 git -C <your checkout> fetch <sandbox path>/repos/<repo> <branch>:sandbox/<branch>
