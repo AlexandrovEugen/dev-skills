@@ -29,6 +29,8 @@ done
 
 Replace or delete a managed file only when it is unedited. A managed file with local edits blocks its workspace. Show its diff against the current central version, and leave it alone; `push` can promote the edits.
 
+When only one of the two root agent files is managed, treat the other as the workspace's own: `pull` stops and offers `migrate`, and `sync-all` reports the workspace blocked.
+
 When a root agent file is a symlink, keep a `CLAUDE.md` that links to the sibling `AGENTS.md`, and write only `AGENTS.md`. Stop at any other link and report it.
 
 ## Before every subcommand
@@ -63,7 +65,7 @@ Use `push <workspace-path>` after the dev has changed a managed universal rule o
 2. Require both root agent files to be managed, and identical or `CLAUDE.md` a link to `AGENTS.md`. If either condition fails, show the difference and stop.
 3. Compare `AGENTS.md` with `UNIVERSAL.md`, and each managed file in `.agent-rules/skills/` with its central protocol.
 4. Note the branch dev-skills is on, then `git -C <dev-skills> switch -c rules/<workspace-name>-<YYYY-MM-DD> origin/<default>`.
-5. Copy only changed managed files into dev-skills. Never copy `WORKSPACE.md`, repository rules, settings, `MEMORY.md`, or the registry.
+5. Copy only changed managed files into dev-skills. A file in `.agent-rules/skills/` with no central protocol is the workspace's own: promote it only when the dev names it, adding its marker line as the first line of both copies. Never copy `WORKSPACE.md`, repository rules, settings, `MEMORY.md`, or the registry.
 6. Commit the changes, push the branch, and open a pull request against `<default>`. The pull request states which reference workspace supplied the change and which rules changed.
 7. Switch dev-skills back to the branch noted in step 4. Report the pull request URL. Do not merge it or run `sync-all`.
 
