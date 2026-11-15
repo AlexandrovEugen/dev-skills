@@ -17,7 +17,7 @@ A **managed file** is a root `AGENTS.md` or `CLAUDE.md`, or a file in `.agent-ru
 - `<!-- managed by dev-skills: agent-rules/UNIVERSAL.md -->` for a root agent file;
 - `<!-- managed by dev-skills: agent-rules/skill-protocols/<name>.md -->` for a protocol.
 
-Read that line from the file on disk. Claude Code hides HTML comments when it loads `CLAUDE.md`, so the loaded context does not show it. A file without that exact first line belongs to the workspace.
+Read that line from the file on disk. Claude Code hides HTML comments when it loads `CLAUDE.md`, so the loaded context does not show it. A file without that exact first line belongs to the workspace. A file inside a git repository below the workspace root belongs to that repository: read it, and never change it.
 
 A managed file is **unedited** when it equals some version of its central source on the default branch:
 
@@ -48,11 +48,11 @@ When a root agent file is a symlink, keep a `CLAUDE.md` that links to the siblin
 Use `pull <workspace-path> <workspace-name>` for a fresh workspace.
 
 1. Read `UNIVERSAL.md`, the protocols and the platform fragments at `origin/<default>`.
-2. Inspect `<workspace-path>/AGENTS.md`, `<workspace-path>/CLAUDE.md`, `<workspace-path>/WORKSPACE.md`, `<workspace-path>/MEMORY.md`, and `<workspace-path>/.agent-rules/skills/`.
+2. Inspect `<workspace-path>/AGENTS.md`, `<workspace-path>/CLAUDE.md`, `<workspace-path>/WORKSPACE.md`, and `<workspace-path>/.agent-rules/skills/`.
 3. Stop when either root agent file exists and is not managed, or when a file in `.agent-rules/skills/` has a central protocol's name and is not managed: offer `migrate`. Stop when a managed file has local edits, and show its diff. Do not overwrite either.
-4. Write `UNIVERSAL.md` exactly as `AGENTS.md` and `CLAUDE.md` at the workspace root.
+4. Write `UNIVERSAL.md` exactly as `AGENTS.md` at the workspace root, and make `CLAUDE.md` a symbolic link to `AGENTS.md`.
 5. Write every central protocol into `<workspace-path>/.agent-rules/skills/`.
-6. Create `WORKSPACE.md` and `MEMORY.md` from the templates only when they do not exist.
+6. Create `WORKSPACE.md` from the template only when it does not exist.
 7. Merge each supported platform fragment into the workspace's personal settings, never into checked-in shared ones. For Claude Code, merge `platforms/claude-code.json` into `<workspace-path>/.claude/settings.local.json`: replace `<node>` with the output of `command -v node` and `<dev-skills>` with the dev-skills path, append missing denied permissions, append each hook group whose command no hook of that event already runs, and keep every existing key and value. When the file exists and does not parse as strict JSON, leave it unchanged and report it. In a git workspace where `git check-ignore -q .claude/settings.local.json` fails, add that path to `.git/info/exclude`.
 8. Add `<workspace-name>` and its absolute path to the registry, or update its path when the name already exists.
 9. Report every created or merged file and every local file left untouched.
@@ -65,7 +65,7 @@ Use `push <workspace-path>` after the dev has changed a managed universal rule o
 2. Require both root agent files to be managed, and identical or `CLAUDE.md` a link to `AGENTS.md`. If either condition fails, show the difference and stop.
 3. Compare `AGENTS.md` with `UNIVERSAL.md`, and each managed file in `.agent-rules/skills/` with its central protocol.
 4. Note the branch dev-skills is on, then `git -C <dev-skills> switch -c rules/<workspace-name>-<YYYY-MM-DD> origin/<default>`.
-5. Copy only changed managed files into dev-skills. A file in `.agent-rules/skills/` with no central protocol is the workspace's own: promote it only when the dev names it, adding its marker line as the first line of both copies. Never copy `WORKSPACE.md`, repository rules, settings, `MEMORY.md`, or the registry.
+5. Copy only changed managed files into dev-skills. A file in `.agent-rules/skills/` with no central protocol is the workspace's own: promote it only when the dev names it, adding its marker line as the first line of both copies. Never copy `WORKSPACE.md`, repository rules, settings, or the registry.
 6. Commit the changes, push the branch, and open a pull request against `<default>`. The pull request states which reference workspace supplied the change and which rules changed.
 7. Switch dev-skills back to the branch noted in step 4. Report the pull request URL. Do not merge it or run `sync-all`.
 
@@ -75,9 +75,9 @@ Use `sync-all` only after the dev asks for distribution and the relevant `dev-sk
 
 1. Read every central source and platform fragment at `origin/<default>`.
 2. For each registered workspace whose path is not a directory, report it as blocked, path missing, and create nothing there.
-3. In every other workspace, replace each unedited managed file with its central version. Delete each unedited managed file in `.agent-rules/skills/` whose central protocol no longer exists. Leave every managed file with local edits, and report its diff.
+3. In every other workspace, replace each unedited managed file with its central version. Delete each unedited managed file in `.agent-rules/skills/` whose central protocol no longer exists. Replace an unedited managed `CLAUDE.md` with a symbolic link to `AGENTS.md`. Leave every managed file with local edits, and report its diff.
 4. Merge supported platform fragments as **Pull** step 7 does.
-5. Do not replace `WORKSPACE.md`, repository-local rules, files that are not managed, or `MEMORY.md`.
+5. Do not replace `WORKSPACE.md`, repository-local rules, or files that are not managed.
 6. Report each workspace updated, skipped, or blocked and why, and each file deleted.
 
 ## Migration
