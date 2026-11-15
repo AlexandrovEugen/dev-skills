@@ -4,5 +4,22 @@
       "AskUserQuestion",
       "mcp__ccd_turn__wrap_up"
     ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "<node> <dev-skills>/agent-rules/hooks/skill-protocol.mjs", "timeout": 10 }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Skill",
+        "hooks": [
+          { "type": "command", "command": "<node> <dev-skills>/agent-rules/hooks/skill-protocol.mjs", "timeout": 10 }
+        ]
+      }
+    ]
   }
 }
