@@ -1,10 +1,12 @@
 <!-- managed by dev-skills: agent-rules/skill-protocols/retro.md -->
+---
+skill: retro
+scope: session
+---
+# retro
 
-# Retro protocol
+1. The first tool call is the Skill tool for `writing-for-agents`.
+2. The session is read from its transcript file, not recalled.
+3. Candidates are presented in severity order. Nothing changes in the retro turn.
 
-Use this file only with an invoked retro skill.
-
-- Read the session transcript rather than recall the session from memory.
-- Verify every claim about a tool, setting, or mechanism before stating it.
-- Present candidates in severity order and change nothing in the retro turn.
-- Apply a selected candidate only after the dev chooses it, outside the retro workflow.
+**Ends when** the candidates are presented.

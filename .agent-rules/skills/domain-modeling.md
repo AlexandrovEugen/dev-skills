@@ -1,10 +1,11 @@
 <!-- managed by dev-skills: agent-rules/skill-protocols/domain-modeling.md -->
+---
+skill: domain-modeling
+scope: session
+---
+# domain-modeling
 
-# Domain-modeling protocol
-
-Use this file only with an invoked domain-modeling skill.
-
-- Put a resolved term in the relevant `GLOSSARY.md` in the same turn; where none exists, the skill's rule for creating files lazily decides.
-- Name a conflict with a glossary term or its avoid-list in the turn it appears.
-- Define a glossary term by its meaning, without implementation detail.
-- Offer an ADR only when the skill's three conditions hold, and write it when the dev accepts.
+1. A resolved term goes into the right `GLOSSARY.md` in the same turn, in the skill's `GLOSSARY-FORMAT.md`. With no `GLOSSARY.md`, the first resolved term creates it.
+2. A word that conflicts with `GLOSSARY.md` is named in the turn it is said.
+3. A `GLOSSARY.md` entry holds the meaning only, with no implementation detail.
+4. An ADR is offered only when it is hard to reverse, surprising without context, and the result of a real trade-off, and is written in the skill's `ADR-FORMAT.md`.
