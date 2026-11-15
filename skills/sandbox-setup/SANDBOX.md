@@ -10,7 +10,9 @@ How each guardrail in [SKILL.md](SKILL.md) becomes files. Fill every `<…>` fro
 ├── .env                      compose values: UID, GID, generated passwords
 ├── agent.env                 the Claude token, written by the dev, mode 600
 ├── README.md
+├── INVENTORY.md              what the survey found, each row citing its path:line
 ├── repos/<repo>/             the copies, unchanged
+├── repos/.claude/skills/onboard-<project>/  the onboarding tour, when the dev wants one
 ├── mirrors/<repo>.git        bare mirrors of git sources, written only by the host, never mounted writable
 ├── incoming/                 downloaded archives, and the patch and tar of a local source's uncommitted work
 ├── images/<name>/Dockerfile  one per copy, plus agent, egress, ingress, gitread
@@ -41,6 +43,8 @@ networks:
 - `proxy` holds `egress` and the only containers that may use it: the install steps, the agent, and a service the dev opened a host for. It is internal too, so its one way out is the proxy. A service that is not on it cannot even resolve `egress`. Pick a subnet that no existing Docker network uses (`docker network inspect $(docker network ls -q) --format '{{range .IPAM.Config}}{{.Subnet}} {{end}}'`). Docker hands out dynamic addresses from `ip_range` only, so the fixed addresses below `.128` stay free: `egress` at `.2`, the agent at `.10`, opened services from `.20`.
 - `outside` is a normal bridge for `egress` and `ingress`.
 
+On Docker Engine for Linux, require 26.0.0 or newer (`docker version --format '{{.Server.Version}}'`): older engines forward an internal network's DNS queries to outside resolvers (CVE-2024-29018), a channel out for data. Docker Desktop is not affected.
+
 ```yaml
   egress:
     <<: *hardening
@@ -59,7 +63,7 @@ networks:
     networks: [sandbox, outside]
 ```
 
-- **Egress proxy** (`egress`): Squid on `debian:bookworm-slim` (`apt-get install squid`), with `USER proxy` in its Dockerfile, so it starts unprivileged and needs no capability. It tells clients apart by address. The agent holds the Claude token, and any project code it runs can read the token, so the agent reaches `api.anthropic.com` alone and no host where that code could push or publish it. Each opened service reaches only its own host. Every other client on `proxy`, which means the install steps, reaches the domains in `egress/allowlist.txt`. That list holds only what the inventory needs: the package registries the copies use (`registry.npmjs.org`, `pypi.org`, `files.pythonhosted.org`, `repo.maven.apache.org`, `plugins.gradle.org`, `proxy.golang.org`, `index.crates.io` and the like), and the git hosts of the sources. `egress/squid.conf`:
+- **Egress proxy** (`egress`): Squid on `debian:bookworm-slim` (`apt-get install squid`), with `USER proxy` in its Dockerfile, so it starts unprivileged and needs no capability. It tells clients apart by address. The agent holds the Claude token, and any project code it runs can read the token, so the agent reaches `api.anthropic.com` alone and no host where that code could push or publish it. Each opened service reaches only its own host. Every other client on `proxy`, which means the install steps, reaches the domains in `egress/allowlist.txt`. That list holds only what the inventory needs: the package registries the copies use (`registry.npmjs.org`, `pypi.org`, `files.pythonhosted.org`, `repo.maven.apache.org`, `plugins.gradle.org`, `services.gradle.org` and `downloads.gradle.org` for the Gradle wrapper, `proxy.golang.org`, `index.crates.io` and the like), and the git hosts of the sources. `egress/squid.conf`:
 
   ```
   http_port 3128
@@ -176,13 +180,15 @@ The healthcheck passes on any HTTP answer, a 404 included, so it needs no health
 
 The copy's tests run in its install step's container (`docker compose run --rm <repo>-install <test command>`). That container reaches the dependencies on `sandbox`, and the registries through the proxy, for the plugins a test runner such as Maven resolves only when tests run. `env/<repo>-test.env` holds the connections the tests read.
 
-Install where the stack's own tooling puts dependencies: a folder in the copy that its `.gitignore` already ignores (`node_modules`, `.venv`), or a named cache volume (`~/.m2`, `~/.gradle`, `~/go/pkg`, `~/.cargo`). Mount the `.env` file only where the copy reads one, and an override only where an environment variable cannot set the value.
+Install where the stack's own tooling puts dependencies: a folder in the copy that its `.gitignore` already ignores (`node_modules`, `.venv`), or a named cache volume (`~/.m2`, `~/.gradle`, `~/go/pkg`, `~/.cargo`). Mount the `.env` file only where the copy reads one, and an override only where an environment variable cannot set the value. When a mount's target does not exist in the copy, Docker creates it there as an empty file or folder. Mount onto such a path only when the copy's `.gitignore` ignores it, and list each one in the README under **Left behind**.
 
 A service reaches another service, a dependency or a mock by its compose name: `postgres:5432`, `rs-core:8080`, `binance-mock:8080`.
 
 ## Dependencies
 
 Use each dependency's official image, at the version the source names (a Helm chart, a compose file, a doc, a client library's supported range), else its current stable release. Generate each password with `openssl rand -hex 16` into `.env`. Give each one a health check from its own tools: `pg_isready`, `redis-cli ping`, `mysqladmin ping`, `kafka-broker-api-versions.sh`. Publish a dependency's port through `ingress` only when the README tells the dev to use it.
+
+On an arm64 host, such as Apple Silicon, an image with no arm64 build runs only under emulation. Set `platform: linux/amd64` on it and note it in the README. When it fails under emulation, it is a part a container cannot run.
 
 ## Mocks
 
@@ -210,4 +216,4 @@ A real external host opens only on the dev's request by name. Give that one serv
       proxy: { ipv4_address: <subnet>.10 }
 ```
 
-Its image holds `git`, `curl`, `ca-certificates`, every toolchain the services use at the same versions, the cache directories as for a copy image, and Claude Code installed as the non-root user with `curl -fsSL https://claude.ai/install.sh | bash`. The agent reaches only the Anthropic API, so it installs no packages. It uses what the install steps put in the copies and the cache volumes. When it changes a manifest, the dev runs `docker compose run --rm <repo>-install`. Write `agent.env` as the one line `CLAUDE_CODE_OAUTH_TOKEN=`, mode 600; the dev fills it with the token `claude setup-token` prints in their terminal. The agent sees every copy at `/work/<repo>`, the same files the services run, so its edits reach the running services without a rebuild.
+Its image holds `git`, `curl`, `ca-certificates`, every toolchain the services use at the same versions, the cache directories as for a copy image, and Claude Code installed as the non-root user at a pinned version: `curl -fsSL https://claude.ai/install.sh | bash -s <version>`, with `<version>` the version number that `claude --version` prints on the host. Check `claude --version` in the built image. The agent reaches only the Anthropic API, so it installs no packages. It uses what the install steps put in the copies and the cache volumes. When it changes a manifest, the dev runs `docker compose run --rm <repo>-install`. Write `agent.env` as the one line `CLAUDE_CODE_OAUTH_TOKEN=`, mode 600; the dev fills it with the token `claude setup-token` prints in their terminal. The agent sees every copy at `/work/<repo>`, the same files the services run, so its edits reach the running services without a rebuild.

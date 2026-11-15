@@ -10,7 +10,7 @@ Personal agent skills and portable agent rules for software engineering.
 
 ## Portable rules
 
-[agent-rules/](agent-rules/README.md) is the checked-in origin for universal agent rules. The `workspace-rules` skill installs and synchronizes copies for Claude Code, Codex, and other agents that read `CLAUDE.md` or `AGENTS.md`.
+[agent-rules/](agent-rules/README.md) is the checked-in origin for universal agent rules. The `workspace-rules` skill installs and synchronizes copies for any agent that reads `CLAUDE.md` or `AGENTS.md`, such as Claude Code or Codex. The skills themselves are written for Claude Code: they rely on its skill frontmatter and sub-agents, and only a Claude Code settings fragment exists.
 
 ## Install
 

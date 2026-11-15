@@ -10,7 +10,7 @@ These rules apply in every workspace that installs them. They complement an invo
 - Read the invoked skill in full and run every required step in its order and output format.
 - Do the investigation, derivation, and checks the skill assigns to the agent before asking the dev a question.
 - Ask the dev only for a decision that the skill, the dev's earlier input, and checked facts do not settle.
-- Read `.agent-rules/skills/<skill-name>.md` when it exists for the invoked skill; it adds only guidance that helps the skill run.
+- Read `.agent-rules/skills/<skill-name>.md` when it exists for the invoked skill, where `<skill-name>` is the skill's name without a plugin prefix (`mattpocock-skills:grilling` reads `grilling.md`); it adds only guidance that helps the skill run.
 
 ## Evidence
 
@@ -26,5 +26,5 @@ These rules apply in every workspace that installs them. They complement an invo
 
 ## Persistent memory and attribution
 
-- `MEMORY.md` is a pointer to maintained rule files; do not add rules, session history, or working notes to it.
+- The workspace's root `MEMORY.md` is a pointer to maintained rule files; do not add rules, session history, or working notes to it. Claude Code's auto-memory under `~/.claude/projects/` is a different file.
 - Do not add AI or vendor attribution to commits, pull requests, comments, or generated documents unless the dev asks for it.

@@ -1,6 +1,6 @@
 # Report format
 
-Fill every `<…>`. IDs run `M1`, `M2`… for Must Fix, `S1`… for Should Fix, `C1`… for Could Fix, most severe first in each bucket. Write the **Issue** line only for a finding an open issue already reports.
+Fill every `<…>`. IDs run `M1`, `M2`… for Must Fix, `S1`… for Should Fix, `C1`… for Could Fix. Order each bucket by impact: findings that risk secrets, data or money first, then those that stop a service, then the rest; within each, the one that reaches more users or callers first. A bucket with no findings keeps its heading, with the line `None.` under it. Write the **Issue** line only for a finding an open issue already reports. `<repository>` is `owner/repo` from the `origin` remote, else the repository root's folder name.
 
 ```markdown
 # Deep review: <repository>[/<target path>]
