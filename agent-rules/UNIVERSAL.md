@@ -19,7 +19,7 @@
 
 - Keep durable rules in files that the dev can inspect, change, and revert.
 - Write each rule as one short instruction: what to do, and its limit. Add how only when the what is not enough, and no reason.
-- Put a rule change in its narrowest owner: a shared rule in this file or in `.agent-rules/skills/`, then run `/workspace-rules push`; a workspace rule in `WORKSPACE.md`; a repository rule in that repository.
+- Put a rule change in its narrowest owner: a shared rule in this file or in `.agent-rules/skills/`, then run `/workspace push`; a workspace rule in `WORKSPACE.md`; a repository rule in that repository.
 - Read the rules of the repository and directory that own the work before working there.
 - Outside an invoked skill, repository rules override workspace rules, and workspace rules override these universal rules.
 - Workspace rules: @WORKSPACE.md
