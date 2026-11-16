@@ -9,19 +9,31 @@
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "<node> <dev-skills>/agent-rules/hooks/steering-changed.mjs", "timeout": 10 }
+          {
+            "type": "command",
+            "command": "<node> <dev-skills>/agent-rules/hooks/steering-changed.mjs",
+            "timeout": 10
+          }
         ]
       }
     ],
     "UserPromptSubmit": [
       {
         "hooks": [
-          { "type": "command", "command": "<node> <dev-skills>/agent-rules/hooks/skill-protocol.mjs", "timeout": 10 }
+          {
+            "type": "command",
+            "command": "<node> <dev-skills>/agent-rules/hooks/skill-protocol.mjs",
+            "timeout": 10
+          }
         ]
       },
       {
         "hooks": [
-          { "type": "command", "command": "<node> <dev-skills>/agent-rules/hooks/steering-changed.mjs", "timeout": 10 }
+          {
+            "type": "command",
+            "command": "<node> <dev-skills>/agent-rules/hooks/steering-changed.mjs",
+            "timeout": 10
+          }
         ]
       }
     ],
@@ -29,7 +41,11 @@
       {
         "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
         "hooks": [
-          { "type": "command", "command": "<python3> -I <dev-skills>/agent-rules/hooks/no-host-paths.py", "timeout": 10 }
+          {
+            "type": "command",
+            "command": "<python3> -I <dev-skills>/agent-rules/hooks/no-host-paths.py",
+            "timeout": 10
+          }
         ]
       }
     ],
@@ -37,7 +53,22 @@
       {
         "matcher": "Skill",
         "hooks": [
-          { "type": "command", "command": "<node> <dev-skills>/agent-rules/hooks/skill-protocol.mjs", "timeout": 10 }
+          {
+            "type": "command",
+            "command": "<node> <dev-skills>/agent-rules/hooks/skill-protocol.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PYTHONPATH=<dev-skills>/agent-rules/hooks <python3> -B -m grill_round_check",
+            "timeout": 10
+          }
         ]
       }
     ]

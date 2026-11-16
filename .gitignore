@@ -1,1 +1,3 @@
 agent-rules/workspaces.local.tsv
+__pycache__/
+.pytest_cache/

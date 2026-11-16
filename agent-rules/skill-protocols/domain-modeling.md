@@ -2,6 +2,7 @@
 ---
 skill: domain-modeling
 scope: session
+with: [domain-modeling-ext]
 ---
 # domain-modeling
 
@@ -9,3 +10,4 @@ scope: session
 2. A word that conflicts with `GLOSSARY.md` is named in the turn it is said.
 3. A `GLOSSARY.md` entry holds the meaning only, with no implementation detail.
 4. An ADR is offered only when it is hard to reverse, surprising without context, and the result of a real trade-off, and is written in the skill's `ADR-FORMAT.md`.
+5. Every step of `domain-modeling-ext` runs with it.
