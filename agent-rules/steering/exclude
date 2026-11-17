@@ -4,5 +4,6 @@
 !/WORKSPACE.md
 !/GLOSSARY-MAP.md
 !/.agent-rules/
+!/.claude/
 .DS_Store
 *.bak-*
