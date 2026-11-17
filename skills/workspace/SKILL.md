@@ -45,7 +45,7 @@ Replace or delete a managed file only when it is unedited. A managed file with l
 
 ## Steering
 
-**Steering** is the workspace's local git repository for its own files, in `<workspace-path>/.steering.git`, with no remote. The **root repository** is the git repository whose root is the workspace root, when there is one.
+**Steering** is the workspace's local git repository for its own files, in `<workspace-path>/.steering.git`, with no remote. It is the only git of the workspace's own files, `.claude/` included. The **root repository** is the git repository whose root is the workspace root, when there is one.
 
 To create steering:
 
@@ -53,6 +53,8 @@ To create steering:
 2. Write `agent-rules/steering/exclude` to `.steering.git/info/exclude`. Without a root repository, append `agent-rules/steering/exclude-folder-root`.
 3. Copy `agent-rules/steering/steering` to `<workspace-path>/.agent-rules/steering`, executable.
 4. With a root repository, append to its `.git/info/exclude` each of `/AGENTS.md`, `/CLAUDE.md`, `/WORKSPACE.md`, `/GLOSSARY-MAP.md`, `/.agent-rules/`, `/.steering.git/` that `git check-ignore -q` does not already ignore.
+
+A **workspace git** is a `.git` with no remote in a folder steering tracks, such as `.claude/.git`. To fold one into steering, move its `.git` to the Trash, then commit steering.
 
 Commit to steering with `<workspace-path>/.agent-rules/steering`, in the turn that changes a steering file.
 
@@ -62,7 +64,7 @@ Use `setup <workspace-path> <workspace-name>` to create one complete workspace, 
 
 1. Read the central sources and the platform fragments.
 2. Read every agent file in the workspace: `AGENTS.md`, `CLAUDE.md`, `WORKSPACE.md`, `.agent-rules/`, `.claude/settings*.json`, and every file they point to.
-3. When `.steering.git` does not exist, create steering, then commit what it tracks as `Steering before setup`.
+3. When `.steering.git` does not exist, create steering. Fold each workspace git into steering. Then commit what steering tracks as `Steering before setup`.
 4. When a root agent file or a file in `.agent-rules/skills/` with a central protocol's name exists and is not managed, sort each instruction it holds into one destination: `UNIVERSAL.md` through `push`, a protocol or extension skill in dev-skills through `push`, `WORKSPACE.md`, or the repository that owns it. Show the plan, source line to destination, and wait for the dev's yes. Then move the workspace instructions into `WORKSPACE.md` and list the rest for `push`.
 5. Stop when a managed file has local edits, and show its diff.
 6. Write `UNIVERSAL.md` exactly as `AGENTS.md`, and make `CLAUDE.md` a symbolic link to `AGENTS.md`.
@@ -100,6 +102,7 @@ Use `sync` after the dev asks for distribution and the relevant dev-skills pull 
 3. In every other workspace:
    - create steering when `.steering.git` does not exist;
    - append to `.steering.git/info/exclude` each line of the central exclude files that it lacks, and replace `.agent-rules/steering` with the central copy;
+   - fold each workspace git into steering;
    - replace each unedited managed file with its central version; delete each unedited managed protocol whose central protocol no longer exists; replace an unedited managed `CLAUDE.md` with a link to `AGENTS.md`; leave each managed file with local edits, and report its diff;
    - merge the platform fragments as **Setup** step 10 does;
    - commit steering as `Sync from dev-skills <short commit>`.
