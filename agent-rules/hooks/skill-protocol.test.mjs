@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { activeFromTranscript, contextFor, loadProtocols, parseProtocol, protocolDirs } from "./skill-protocol.mjs";
+import { activeFromTranscript, contextFor, loadExtensions, loadProtocols, parseProtocol, protocolDirs } from "./skill-protocol.mjs";
 
 const managed = (name, header, body) =>
   `<!-- managed by dev-skills: agent-rules/skill-protocols/${name}.md -->\n---\n${header}\n---\n# ${name}\n\n${body}\n`;
@@ -13,7 +13,7 @@ function workspace() {
   const root = mkdtempSync(join(tmpdir(), "skill-protocol-"));
   const ws = join(root, ".agent-rules", "skills");
   mkdirSync(ws, { recursive: true });
-  writeFileSync(join(ws, "grilling.md"), managed("grilling", "skill: grilling\nscope: session", "1. Workspace grilling."));
+  writeFileSync(join(ws, "grilling.md"), managed("grilling", "skill: grilling\nscope: session\nwith: [grilling-ext]", "1. Workspace grilling."));
   writeFileSync(join(ws, "domain-modeling.md"), managed("domain-modeling", "skill: domain-modeling\nscope: session", "1. Glossary."));
   writeFileSync(join(ws, "grill-with-docs.md"),
     managed("grill-with-docs", "skill: grill-with-docs\nscope: session\nwith: [grilling, domain-modeling]", "Call both."));
@@ -65,10 +65,28 @@ test("a typed command replaces the active set; a turn-scoped one adds for this t
   const out = contextFor({ hook_event_name: "UserPromptSubmit", prompt: "/wait-what x" }, protocols, skillCall("grilling"));
   assert.match(out, /--- grilling/);
   assert.match(out, /--- wait-what/);
-  assert.deepEqual(activeFromTranscript([skillCall("grilling"), typed("wait-what")].join("\n"), protocols), ["grilling"]);
+  assert.deepEqual(activeFromTranscript([skillCall("grilling"), typed("wait-what")].join("\n"), protocols), ["grilling", "grilling-ext"]);
 });
 
 test("no protocol for the skill, no output", () => {
   const { root } = workspace();
   assert.equal(contextFor({ hook_event_name: "PostToolUse", tool_name: "Skill", tool_input: { skill: "tdd" } }, loadProtocols(protocolDirs(root)), ""), undefined);
+});
+
+test("an extension skill comes whole with its skill, through every level of with", () => {
+  const { root } = workspace();
+  const skills = mkdtempSync(join(tmpdir(), "skills-"));
+  mkdirSync(join(skills, "grilling-ext"));
+  writeFileSync(join(skills, "grilling-ext", "SKILL.md"), "---\nname: grilling-ext\ndescription: x\n---\n# grilling-ext\n\nAn Example: line.\n");
+  const protocols = loadProtocols(protocolDirs(root), loadExtensions(skills));
+  const out = contextFor({ hook_event_name: "PostToolUse", tool_name: "Skill", tool_input: { skill: "grill-with-docs" } }, protocols, "");
+  assert.match(out, /--- grilling-ext/);
+  assert.match(out, /An Example: line\./);
+  assert.doesNotMatch(out, /name: grilling-ext/);
+});
+
+test("the real extension skills load from dev-skills", () => {
+  const extensions = loadExtensions(new URL("../../skills", import.meta.url).pathname);
+  assert.ok(extensions.has("grilling-ext"));
+  assert.ok(extensions.has("domain-modeling-ext"));
 });

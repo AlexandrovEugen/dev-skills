@@ -6,6 +6,8 @@ Personal agent skills and portable agent rules for software engineering.
 |---|---|
 | [`deep-review`](skills/deep-review/SKILL.md) | Reviews a whole repository, or one directory of it, for bugs, security holes and debt, verifies every finding against the code, and writes a Must / Should / Could Fix backlog. |
 | [`sandbox-setup`](skills/sandbox-setup/SKILL.md) | Sets up any project, from an archive, a remote repo or a local folder, as a Docker sandbox: every repo it needs connected, a mock for everything outside, one container where an agent works on it, and a README that says how to use it. |
+| [`grilling-ext`](skills/grilling-ext/SKILL.md) | Extension skill for `grilling`: options, a worked example and a `Checked:` line in every question, and how a grill keeps its rulings. A Stop hook enforces the round format. |
+| [`domain-modeling-ext`](skills/domain-modeling-ext/SKILL.md) | Extension skill for `domain-modeling`: rules for glossary entries, with a check script, and for ADRs. |
 | [`workspace`](skills/workspace/SKILL.md) | Sets up a complete workspace (steering, rules, protocols, hooks and settings), pushes a change of its shared rules to this repository through a pull request, and syncs every registered workspace. |
 
 ## Portable rules
@@ -22,6 +24,8 @@ ln -s "$PWD/dev-skills/skills/deep-review" ~/.claude/skills/deep-review
 ln -s "$PWD/dev-skills/skills/sandbox-setup" ~/.claude/skills/sandbox-setup
 ln -s "$PWD/dev-skills/skills/workspace" ~/.claude/skills/workspace
 ```
+
+The extension skills need no link: the protocol hook adds each one to the agent's context with the skill it extends.
 
 Restart the agent, then run `/deep-review <path>` in the repository you want reviewed, `/sandbox-setup <archive, git URL or folder>` with Docker running, or `/workspace setup <workspace-path> <workspace-name>` for a workspace.
 

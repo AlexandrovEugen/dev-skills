@@ -1,6 +1,7 @@
 // Claude Code hook for UserPromptSubmit and PostToolUse on Skill.
 // Adds the protocols of the skills active in the session to the agent's context.
 // Protocols come from every `.agent-rules/skills/` from the session's cwd up to `/`; the nearest wins per skill.
+// An extension skill, `skills/<name>-ext/SKILL.md` in dev-skills, is added whole when a protocol names it in `with:`.
 //   echo '<hook event JSON>' | node skill-protocol.mjs
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
@@ -41,8 +42,20 @@ export function protocolDirs(cwd) {
   }
 }
 
-export function loadProtocols(dirs) {
-  const protocols = new Map();
+export function loadExtensions(skillsDir) {
+  const extensions = new Map();
+  if (!existsSync(skillsDir)) return extensions;
+  for (const dir of readdirSync(skillsDir).filter((d) => d.endsWith("-ext")).sort()) {
+    const path = join(skillsDir, dir, "SKILL.md");
+    if (!existsSync(path)) continue;
+    const [, protocol] = parseProtocol(dir, path, readFileSync(path, "utf8"));
+    extensions.set(dir, { ...protocol, scope: "session", with: [] });
+  }
+  return extensions;
+}
+
+export function loadProtocols(dirs, extensions = new Map()) {
+  const protocols = new Map(extensions);
   for (const dir of [...dirs].reverse()) {
     for (const file of readdirSync(dir).filter((f) => f.endsWith(".md")).sort()) {
       const path = join(dir, file);
@@ -53,7 +66,12 @@ export function loadProtocols(dirs) {
   return protocols;
 }
 
-const expand = (name, protocols) => [name, ...(protocols.get(name)?.with ?? [])];
+function expand(name, protocols, seen = []) {
+  if (seen.includes(name)) return seen;
+  seen.push(name);
+  for (const companion of protocols.get(name)?.with ?? []) expand(companion, protocols, seen);
+  return seen;
+}
 const scopeOf = (name, protocols) => protocols.get(name)?.scope ?? "session";
 
 function applyUserCommand(name, active, protocols) {
@@ -121,7 +139,8 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const event = JSON.parse(readFileSync(0, "utf8") || "{}");
   const path = event.transcript_path;
   const transcript = path && existsSync(path) ? readFileSync(path, "utf8") : "";
-  const context = contextFor(event, loadProtocols(protocolDirs(event.cwd ?? process.cwd())), transcript);
+  const extensions = loadExtensions(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "skills"));
+  const context = contextFor(event, loadProtocols(protocolDirs(event.cwd ?? process.cwd()), extensions), transcript);
   if (context) {
     process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: event.hook_event_name, additionalContext: context } }));
   }
