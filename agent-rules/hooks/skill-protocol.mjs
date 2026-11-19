@@ -26,7 +26,7 @@ export function parseProtocol(file, path, text) {
   }
   const companions = (meta.get("with") ?? "").replace(/^\[|\]$/g, "").split(",").map((c) => c.trim()).filter(Boolean);
   return [meta.get("skill") ?? basename(file, ".md"), {
-    scope: meta.get("scope") === "turn" ? "turn" : "session",
+    sideQuest: meta.get("kind") === "side-quest",
     with: companions,
     body: body.trim(),
     path,
@@ -49,7 +49,7 @@ export function loadExtensions(skillsDir) {
     const path = join(skillsDir, dir, "SKILL.md");
     if (!existsSync(path)) continue;
     const [, protocol] = parseProtocol(dir, path, readFileSync(path, "utf8"));
-    extensions.set(dir, { ...protocol, scope: "session", with: [] });
+    extensions.set(dir, { ...protocol, sideQuest: false, with: [] });
   }
   return extensions;
 }
@@ -72,14 +72,14 @@ function expand(name, protocols, seen = []) {
   for (const companion of protocols.get(name)?.with ?? []) expand(companion, protocols, seen);
   return seen;
 }
-const scopeOf = (name, protocols) => protocols.get(name)?.scope ?? "session";
+const isSideQuest = (name, protocols) => protocols.get(name)?.sideQuest === true;
 
 function applyUserCommand(name, active, protocols) {
-  return scopeOf(name, protocols) === "turn" ? active : expand(name, protocols);
+  return isSideQuest(name, protocols) ? active : expand(name, protocols);
 }
 
 function applySkillCall(name, active, protocols) {
-  if (scopeOf(name, protocols) === "turn") return active;
+  if (isSideQuest(name, protocols)) return active;
   return [...active, ...expand(name, protocols).filter((n) => !active.includes(n))];
 }
 
@@ -123,7 +123,7 @@ export function contextFor(event, protocols, transcript) {
     const match = COMMAND.exec(prompt) ?? TYPED.exec(prompt);
     if (match) {
       const name = short(match[1]);
-      if (scopeOf(name, protocols) === "turn") thisTurn = [name];
+      if (isSideQuest(name, protocols)) thisTurn = expand(name, protocols);
       else active = applyUserCommand(name, active, protocols);
     }
     return render([...active, ...thisTurn], protocols, "skills active in this session");
