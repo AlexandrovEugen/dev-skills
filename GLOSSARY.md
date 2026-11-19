@@ -34,7 +34,6 @@ _Avoid_: sync-all, distribute
 
 **Step**:
 One ordered action of a skill, as the skill itself names it, ending on a condition that tells it is done.
-_Avoid_: task
 
 **Stage**:
 The part of a session that one invoked skill runs, from its call until another skill takes the session over or the session ends. A stage holds that skill's steps.
@@ -42,7 +41,6 @@ _Avoid_: phase
 
 **Side quest**:
 A skill called inside a stage to clear a doubt or gather facts, after which the stage goes on at the step it left.
-_Avoid_: detour, interruption
 
 **Protocol**:
 The ordered steps a skill must run without skipping, with a way to verify that no step or rule of that skill was skipped.
@@ -54,7 +52,7 @@ _Avoid_: candidate, finding
 
 **Good practice**:
 Something that went well in agents' work, kept across retrospectives so that its loss after a change shows.
-_Avoid_: keep, win
+_Avoid_: keep
 
 **Retro pool**:
 The store of every problem and good practice gathered from sessions, one entry each, that a retrospective draws on to propose a fix.
