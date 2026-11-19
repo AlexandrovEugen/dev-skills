@@ -226,3 +226,53 @@ test("retro-ext receives the session's transcript path", () => {
   assert.match(out, /Transcript: \/s\/abc\.jsonl/);
   assert.doesNotMatch(out, /<transcript-path>/);
 });
+
+const retroAt = (protocols, lines, tool_name, tool_input) => afterTool(protocols, lines, tool_name, tool_input) ?? "";
+
+test("the implement protocol injects retro-ext only after the commit that follows code review", () => {
+  const protocols = central();
+  assert.doesNotMatch(afterTool(protocols, [], "Skill", { skill: "mattpocock-skills:implement" }), /--- retro-ext /);
+  const building = [skillCall("implement"), skillCall("tdd"), toolCall("Bash", { command: "git commit -m slice" })];
+  assert.doesNotMatch(retroAt(protocols, building, "Skill", { skill: "mattpocock-skills:code-review" }), /--- retro-ext /);
+  const reviewed = [...building, skillCall("mattpocock-skills:code-review")];
+  assert.doesNotMatch(onPrompt(protocols, reviewed), /--- retro-ext /);
+  const committed = afterTool(protocols, reviewed, "Bash", { command: "git commit -m review" });
+  assert.match(committed, /--- implement /);
+  assert.match(committed, /--- retro-ext /);
+});
+
+test("the implement-spec protocol injects retro-ext only after its cleanup step", () => {
+  const protocols = central();
+  assert.doesNotMatch(afterTool(protocols, [], "Skill", { skill: "mattpocock-skills:implement-spec" }), /--- retro-ext /);
+  const running = [typed("implement-spec"), toolCall("Bash", { command: "git checkout -b spec/13" }), toolCall("Agent", { prompt: "ticket 18" }),
+    toolCall("Bash", { command: "git worktree remove .claude/worktrees/a" })];
+  assert.doesNotMatch(retroAt(protocols, running, "Skill", { skill: "mattpocock-skills:code-review" }), /--- retro-ext /);
+  const resolved = [...running, skillCall("code-review"), toolCall("Bash", { command: "gh issue close 18" })];
+  assert.doesNotMatch(onPrompt(protocols, resolved), /--- retro-ext /);
+  const cleaned = afterTool(protocols, resolved, "Bash", { command: "git worktree remove .claude/worktrees/b" });
+  assert.match(cleaned, /--- implement-spec /);
+  assert.match(cleaned, /--- retro-ext /);
+});
+
+test("the triage protocol injects retro-ext only after the outcome is applied", () => {
+  const protocols = central();
+  assert.doesNotMatch(afterTool(protocols, [], "Skill", { skill: "mattpocock-skills:triage" }), /--- retro-ext /);
+  const triaging = [typed("triage"), toolCall("Bash", { command: "gh issue view 42 --comments" })];
+  assert.doesNotMatch(onPrompt(protocols, triaging), /--- retro-ext /);
+  assert.equal(afterTool(protocols, triaging, "Bash", { command: "gh issue list --label needs-triage" }), undefined);
+  const applied = afterTool(protocols, triaging, "Bash", { command: "gh issue edit 42 --add-label ready-for-agent" });
+  assert.match(applied, /--- triage /);
+  assert.match(applied, /--- retro-ext /);
+});
+
+test("the diagnosing-bugs protocol injects retro-ext only after its cleanup checklist", () => {
+  const protocols = central();
+  assert.doesNotMatch(afterTool(protocols, [], "Skill", { skill: "mattpocock-skills:diagnosing-bugs" }), /--- retro-ext /);
+  const fixing = [skillCall("diagnosing-bugs"), toolCall("Bash", { command: "node --test | grep DEBUG-a4f2" }), toolCall("Bash", { command: "git commit -m 'regression test'" })];
+  assert.doesNotMatch(retroAt(protocols, fixing, "Bash", { command: "grep -rn 'DEBUG-a4f2' src" }), /--- retro-ext /);
+  const cleaned = [...fixing, toolCall("Bash", { command: "grep -rn 'DEBUG-a4f2' src" })];
+  assert.doesNotMatch(onPrompt(protocols, cleaned), /--- retro-ext /);
+  const committed = afterTool(protocols, cleaned, "Bash", { command: "git commit -m 'Fix: cause was X'" });
+  assert.match(committed, /--- diagnosing-bugs /);
+  assert.match(committed, /--- retro-ext /);
+});

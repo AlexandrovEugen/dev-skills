@@ -152,8 +152,12 @@ function meets(call, done) {
 
 function currentStep(name, protocols, state) {
   const { steps } = protocols.get(name);
-  const since = state.calls.slice(state.start.get(name) ?? state.calls.length);
-  return steps.find((step) => !step.done || !since.some((call) => meets(call, step.done)));
+  let from = state.start.get(name) ?? state.calls.length;
+  return steps.find((step) => {
+    const at = step.done ? state.calls.findIndex((call, i) => i >= from && meets(call, step.done)) : -1;
+    from = at + 1;
+    return at < 0;
+  });
 }
 
 function visible(name, names, protocols, state) {
