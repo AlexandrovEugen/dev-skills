@@ -16,6 +16,10 @@ _Avoid_: pull, install
 The local version history of a workspace's own files: its rules, docs, and tooling, apart from the repositories it holds. Setup creates it first.
 _Avoid_: backup, workspace repo
 
+**Pinned copy**:
+A workspace's own copy of the hooks and extension skills from one accepted version of the shared rules. The workspace's hooks run only from it.
+_Avoid_: install, live checkout
+
 **Extension skill**:
 A skill the dev owns that adds steps or formats to one or more skills the dev does not own, and runs together with each. It never removes a step of those skills.
 _Avoid_: patch, override, workaround

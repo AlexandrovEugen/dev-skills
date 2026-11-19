@@ -11,7 +11,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "<node> <dev-skills>/agent-rules/hooks/steering-changed.mjs",
+            "command": "<node> <pinned>/agent-rules/hooks/steering-changed.mjs",
             "timeout": 10
           }
         ]
@@ -22,7 +22,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "<node> <dev-skills>/agent-rules/hooks/skill-protocol.mjs",
+            "command": "<node> <pinned>/agent-rules/hooks/skill-protocol.mjs",
             "timeout": 10
           }
         ]
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "<node> <dev-skills>/agent-rules/hooks/steering-changed.mjs",
+            "command": "<node> <pinned>/agent-rules/hooks/steering-changed.mjs",
             "timeout": 10
           }
         ]
@@ -43,7 +43,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "<python3> -I <dev-skills>/agent-rules/hooks/no-host-paths.py",
+            "command": "<python3> -I <pinned>/agent-rules/hooks/no-host-paths.py",
             "timeout": 10
           }
         ]
@@ -55,7 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "<node> <dev-skills>/agent-rules/hooks/skill-protocol.mjs",
+            "command": "<node> <pinned>/agent-rules/hooks/skill-protocol.mjs",
             "timeout": 10
           }
         ]
@@ -66,7 +66,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PYTHONPATH=<dev-skills>/agent-rules/hooks <python3> -B -m grill_round_check",
+            "command": "PYTHONPATH=<pinned>/agent-rules/hooks <python3> -B -m grill_round_check",
             "timeout": 10
           }
         ]

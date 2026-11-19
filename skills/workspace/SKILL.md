@@ -58,6 +58,23 @@ A **workspace git** is a `.git` with no remote in a folder steering tracks, such
 
 Commit to steering with `<workspace-path>/.agent-rules/steering`, in the turn that changes a steering file.
 
+## Pinned copy
+
+The **pinned copy** is `<workspace-path>/.agent-rules/dev-skills/`: the hooks and extension skills of one commit of `origin/<default>`. The workspace's hooks run only from it, never from the dev-skills working tree. A branch, an edit, or an untracked file in dev-skills reaches no workspace until `sync` writes a new pinned copy.
+
+To write the pinned copy:
+
+1. When `<workspace-path>/.agent-rules/steering status --porcelain .agent-rules/dev-skills` lists anything, leave the pinned copy, show that diff, and report the workspace blocked.
+2. Delete `<workspace-path>/.agent-rules/dev-skills/`. Steering keeps its history.
+3. Extract the files from `origin/<default>`:
+
+   ```bash
+   mkdir -p <workspace-path>/.agent-rules/dev-skills
+   git -C <dev-skills> archive origin/<default> agent-rules/hooks ':(glob)skills/*-ext/**' \
+     ':(exclude)agent-rules/hooks/tests' ':(exclude,glob)**/*.test.*' \
+     | tar -x -C <workspace-path>/.agent-rules/dev-skills
+   ```
+
 ## Setup
 
 Use `setup <workspace-path> <workspace-name>` to create one complete workspace, new or existing.
@@ -71,15 +88,16 @@ Use `setup <workspace-path> <workspace-name>` to create one complete workspace, 
 7. Write every central protocol into `.agent-rules/skills/`.
 8. Create `WORKSPACE.md` from `agent-rules/templates/WORKSPACE.md` only when it does not exist.
 9. When a check names places on the dev's machine that belong to this workspace, write their patterns to `.agent-rules/host-paths`, one regular expression per line, after the dev's yes.
-10. Merge each platform fragment into the workspace's personal settings, never into checked-in shared ones. For Claude Code, merge `platforms/claude-code.json` into `<workspace-path>/.claude/settings.local.json`:
-    - replace `<node>` with `command -v node`, `<python3>` with `command -v python3`, and `<dev-skills>` with the dev-skills path;
+10. Write the pinned copy. Then merge each platform fragment into the workspace's personal settings, never into checked-in shared ones. For Claude Code, merge `platforms/claude-code.json` into `<workspace-path>/.claude/settings.local.json`:
+    - replace `<node>` with `command -v node`, `<python3>` with `command -v python3`, and `<pinned>` with `<workspace-path>/.agent-rules/dev-skills`;
+    - in each existing hook command, replace the dev-skills path with `<workspace-path>/.agent-rules/dev-skills`; report each hook command whose script the pinned copy lacks, and leave it;
     - append missing denied permissions;
     - append each hook group whose command no hook of that event already runs;
     - keep every other key and value; when the file does not parse as strict JSON, leave it and report it.
 
     With a root repository where `git check-ignore -q .claude/settings.local.json` fails, add that path to its `.git/info/exclude`.
 11. Add `<workspace-name>` and its absolute path to the registry, or update its path.
-12. Commit steering as `Set up the workspace from dev-skills <short commit>`.
+12. Commit steering as `Set up the workspace from dev-skills <short commit>`, where `<short commit>` is `git -C <dev-skills> rev-parse --short origin/<default>`.
 13. Report each file created, changed, or left, and each item listed for `push`.
 
 ## Push
@@ -104,7 +122,7 @@ Use `sync` after the dev asks for distribution and the relevant dev-skills pull 
    - append to `.steering.git/info/exclude` each line of the central exclude files that it lacks, and replace `.agent-rules/steering` with the central copy;
    - fold each workspace git into steering;
    - replace each unedited managed file with its central version; delete each unedited managed protocol whose central protocol no longer exists; replace an unedited managed `CLAUDE.md` with a link to `AGENTS.md`; leave each managed file with local edits, and report its diff;
-   - merge the platform fragments as **Setup** step 10 does;
+   - write the pinned copy, and merge the platform fragments, as **Setup** step 10 does;
    - commit steering as `Sync from dev-skills <short commit>`.
-4. Do not change `WORKSPACE.md`, `.agent-rules/host-paths`, repository files, or files that are not managed.
+4. Change the pinned copy only through **Pinned copy**. Do not change `WORKSPACE.md`, `.agent-rules/host-paths`, repository files, or files that are not managed.
 5. Report each workspace updated, current, or blocked and why, and each file deleted.
