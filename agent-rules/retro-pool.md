@@ -35,7 +35,7 @@ Each entry adds one row, in id order: `| 0001 | <title> | <kind> | <state> |`. K
 
 - `gathering`: occurrences are appended; nobody has judged the entry yet.
 - `in work`: the dev accepted a fix that is not yet in place.
-- `fixed`: the fix is in place; new occurrences are still appended and compared.
+- `fixed`: the fix is in place, or the dev accepted the good practice; new occurrences are still appended and compared.
 - `closed`: done for good. Leave closed entries unread; read every other entry when matching.
 
 The index row and the entry's `State` line always hold the same state.
@@ -70,6 +70,21 @@ Tokens: <count before> before, <count after> after.
 <better | worse | same | none yet>: count <this run> against <previous occurrence>.
 ```
 
-Append occurrences, one line each, until the dev judges the entry. At judgement, rewrite the entry to its current state; the pool's git keeps the full history.
+Append occurrences, one line each, until the dev judges the entry. A `fixed` entry also gets a line with `Count: 0` from each session that ran its step or rule without the problem: that line is a counted run.
 
-The verdict compares this run's count with the previous occurrence's count: fewer is better, more is worse, equal is the same. A fixed problem with a count of 0 in 3 counted runs becomes a good practice.
+## Verdict
+
+The verdict compares the count of this run's occurrence with the count of the occurrence before it, as raw numbers. Fewer is `better`, more is `worse`, equal is `same`; 0 after a count above 0 is `better`. An entry with one occurrence has `none yet`.
+
+## Tokens
+
+Count the tokens of a text as its bytes divided by 4, rounded up, the rule of `agent-rules/tools/token-limit-check.sh`. Get the bytes with `wc -c`. A fix's `Tokens:` line holds the count of each file it changes, before and after the change.
+
+## Judgement
+
+Only a retro judges entries, and only on the dev's word.
+
+- A judged entry is rewritten whole to its current state, compact: What, Handling, Fix and Verdict as they now stand, and only its last three occurrence lines. The pool's git keeps the full history.
+- A fix the dev accepts sets its entry to `in work`; the retro sets `fixed` once the fix is in place.
+- A fixed problem whose last three occurrences each have `Count: 0` graduates: the retro proposes it as a good practice.
+- A good practice enters the pool's judged set only through the judge: when the dev calls it, the retro proposes each graduated problem and each `gathering` good-practice entry. The dev accepts or rejects each one. An accepted one gets kind `good practice` and state `fixed`; a rejected one gets state `closed`.

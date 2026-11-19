@@ -38,9 +38,9 @@ Count each occurrence once per session:
 
 The occurrence line is the template's line, with `When` as today's date.
 
-## 5. Count tokens
+## 5. Count clean runs
 
-Count the tokens of a file or a text as its bytes divided by 4, rounded up: the rule of `agent-rules/tools/token-limit-check.sh`. Get the bytes with `wc -c`. Use this method for every `Tokens:` line.
+Each `fixed` entry with no occurrence in this session, whose step or rule this session ran, gets one occurrence line with `Count: 0`. Its How says the step or rule ran without the problem.
 
 ## 6. Commit and return
 

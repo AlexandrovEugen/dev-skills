@@ -226,3 +226,29 @@ test("retro-ext receives the session's transcript path", () => {
   assert.match(out, /Transcript: \/s\/abc\.jsonl/);
   assert.doesNotMatch(out, /<transcript-path>/);
 });
+
+test("the retro protocol injects only its gather step, with retro-ext, when the dev types it", () => {
+  const out = contextFor({ hook_event_name: "UserPromptSubmit", prompt: "/mattpocock-skills:retro" }, central(), "");
+  assert.match(out, /--- retro .*\n[\s\S]*## Step: gather/);
+  assert.match(out, /--- retro-ext /);
+  assert.doesNotMatch(out, /## Step: (read|present|change)/);
+});
+
+test("the retro protocol loads read, present and change on their criteria", () => {
+  const protocols = central();
+  const started = [typed("retro"), skillCall("writing-for-agents")];
+  const gather = { prompt: "Read GATHERING.md in /p/skills/retro-ext and run it." };
+  const gathered = afterTool(protocols, started, "Agent", gather);
+  assert.match(gathered, /## Step: read/);
+  assert.doesNotMatch(gathered, /--- retro-ext |## Step: (gather|present|change)/);
+  const listed = { command: "cd /pool && git show --format= --name-only abc1234 | grep -v '^index.md$' | xargs cat" };
+  const read = afterTool(protocols, [...started, toolCall("Agent", gather)], "Bash", listed);
+  assert.match(read, /## Step: present/);
+  assert.doesNotMatch(read, /## Step: (read|change)/);
+  const presented = [...started, toolCall("Agent", gather), toolCall("Bash", listed)];
+  assert.match(onPrompt(protocols, presented), /## Step: present/);
+  assert.equal(afterTool(protocols, presented, "Write", { file_path: "/w/docs/notes.md" }), undefined);
+  const judged = afterTool(protocols, presented, "Write", { file_path: "/w/retro-pool/0007-skipped-publish-step.md" });
+  assert.match(judged, /## Step: change/);
+  assert.doesNotMatch(judged, /## Step: present/);
+});
