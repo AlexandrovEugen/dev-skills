@@ -70,10 +70,22 @@ To write the pinned copy:
 
    ```bash
    mkdir -p <workspace-path>/.agent-rules/dev-skills
-   git -C <dev-skills> archive origin/<default> agent-rules/hooks ':(glob)skills/*-ext/**' \
+   git -C <dev-skills> archive origin/<default> agent-rules/hooks agent-rules/retro-pool.md ':(glob)skills/*-ext/**' \
      ':(exclude)agent-rules/hooks/tests' ':(exclude,glob)**/*.test.*' \
      | tar -x -C <workspace-path>/.agent-rules/dev-skills
    ```
+
+## Retro pool
+
+The Retro pool's place and format are in `agent-rules/retro-pool.md`. Every registered workspace shares one pool. The pool's data stays in the pool: no command copies it into dev-skills, a workspace, or a pull request.
+
+The pool is **current** when its folder holds `.git` and `index.md`. To ensure the pool for a workspace:
+
+1. Compute its place by **Place** in `agent-rules/retro-pool.md`.
+2. When the pool is current, change nothing, and report it current.
+3. Otherwise create what it lacks: the folder; `git -C <pool> init -q` when `.git` is missing; `index.md` as the empty index when it is missing. Add no remote. Commit in the pool as `Start the Retro pool`, and report it created.
+
+A workspace **lacks its pool setting** when its `.claude/settings.local.json` sets no `env.RETRO_POOL`, its parent folder holds no `retro-pool`, and another registered workspace has a pool: one in its parent folder, or one its `env.RETRO_POOL` names.
 
 ## Setup
 
@@ -96,9 +108,10 @@ Use `setup <workspace-path> <workspace-name>` to create one complete workspace, 
     - keep every other key and value; when the file does not parse as strict JSON, leave it and report it.
 
     With a root repository where `git check-ignore -q .claude/settings.local.json` fails, add that path to its `.git/info/exclude`.
-11. Add `<workspace-name>` and its absolute path to the registry, or update its path.
-12. Commit steering as `Set up the workspace from dev-skills <short commit>`, where `<short commit>` is `git -C <dev-skills> rev-parse --short origin/<default>`.
-13. Report each file created, changed, or left, and each item listed for `push`.
+11. Ensure the pool. First, when the workspace lacks its pool setting, show the other workspaces' pools and ask the dev which one this workspace uses; write the answer's absolute path as `env.RETRO_POOL` into `<workspace-path>/.claude/settings.local.json`, keeping every other key.
+12. Add `<workspace-name>` and its absolute path to the registry, or update its path.
+13. Commit steering as `Set up the workspace from dev-skills <short commit>`, where `<short commit>` is `git -C <dev-skills> rev-parse --short origin/<default>`.
+14. Report each file created, changed, or left, the pool created or current, and each item listed for `push`.
 
 ## Push
 
@@ -107,7 +120,7 @@ Use `push <workspace-path>` after the dev changed a managed file, or names a wor
 1. Require `AGENTS.md` to be managed and `CLAUDE.md` a link to it. If not, show the difference and stop.
 2. Compare `AGENTS.md` with `UNIVERSAL.md`, and each managed file in `.agent-rules/skills/` with its central protocol.
 3. Note the branch dev-skills is on, then `git -C <dev-skills> switch -c rules/<workspace-name>-<YYYY-MM-DD> origin/<default>`.
-4. Copy only changed managed files into dev-skills. A workspace file goes in only when the dev names it, as the central file the dev names; a protocol gets its marker line as the first line of both copies. Never copy `WORKSPACE.md` whole, repository files, settings, steering, or the registry.
+4. Copy only changed managed files into dev-skills. A workspace file goes in only when the dev names it, as the central file the dev names; a protocol gets its marker line as the first line of both copies. Never copy `WORKSPACE.md` whole, repository files, settings, steering, the registry, or the Retro pool.
 5. Commit, push the branch, and open a pull request against `<default>` that names the workspace and each changed file.
 6. Switch dev-skills back to the branch noted in step 3. Report the pull request URL. Do not merge it or run `sync`.
 
@@ -122,7 +135,8 @@ Use `sync` after the dev asks for distribution and the relevant dev-skills pull 
    - append to `.steering.git/info/exclude` each line of the central exclude files that it lacks, and replace `.agent-rules/steering` with the central copy;
    - fold each workspace git into steering;
    - replace each unedited managed file with its central version; delete each unedited managed protocol whose central protocol no longer exists; replace an unedited managed `CLAUDE.md` with a link to `AGENTS.md`; leave each managed file with local edits, and report its diff;
-   - write the pinned copy, and merge the platform fragments, as **Setup** step 10 does;
+   - write the pinned copy, and merge the platform fragments, as **Setup** step 10 does; this keeps `env.RETRO_POOL`;
+   - ensure the pool, unless the workspace lacks its pool setting: then report that `setup` must ask for it;
    - commit steering as `Sync from dev-skills <short commit>`.
-4. Change the pinned copy only through **Pinned copy**. Do not change `WORKSPACE.md`, `.agent-rules/host-paths`, repository files, or files that are not managed.
-5. Report each workspace updated, current, or blocked and why, and each file deleted.
+4. Change the pinned copy only through **Pinned copy**. Do not change `WORKSPACE.md`, `.agent-rules/host-paths`, `env.RETRO_POOL`, repository files, or files that are not managed.
+5. Report each workspace updated, current, or blocked and why, each pool created or current, and each file deleted.
