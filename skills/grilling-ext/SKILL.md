@@ -15,14 +15,14 @@ Each question in `grilling`'s round format also has:
 2. A line that opens `Example:`, with one worked example that holds a number.
 3. A line that opens `Checked:`, naming the ADRs, glossary entries, and rulings the question was tested against. A question asked before needs none.
 4. A `➡️` line that opens with the recommended option's letter, `➡️ (a)`, then its reason in at least three words.
-5. A question asked before keeps its full text. When it gets shorter, a line that opens `Rewritten:` says what changed and maps old option letters to new.
+5. A question asked before is sent again word for word when nothing about it changed. When it changes, a line that opens `Rewritten:` says what changed and maps old option letters to new.
 
 Each question is its own block, never a list item.
 
 ## Every turn of a grill
 
-1. The grill runs from the turn `grilling` loads until the dev says to build.
-2. Each turn ends with the frontier in the round format, or one line naming the open questions as unchanged, or the statement that the frontier is empty.
+1. The grill runs from the turn `grilling` loads until the frontier is empty.
+2. Each turn ends with the whole frontier in the round format, or the statement that the frontier is empty.
 3. Each ADR text and `GLOSSARY.md` entry a ruling makes is shown whole, in the round that makes it.
 
 ## Rulings
