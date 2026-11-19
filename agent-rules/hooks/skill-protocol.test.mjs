@@ -202,3 +202,27 @@ test("the PostToolUse matcher covers every tool a criterion names", () => {
   const tools = new Set(["Skill", ...[...protocols.values()].flatMap((p) => p.steps.map((s) => s.done?.tool)).filter(Boolean)]);
   for (const tool of tools) assert.ok(matchers.some((m) => m.test(tool)), `${tool} is not in the PostToolUse matcher`);
 });
+
+function central() {
+  return loadProtocols([new URL("../skill-protocols", import.meta.url).pathname], loadExtensions(new URL("../../skills", import.meta.url).pathname));
+}
+
+test("the to-tickets protocol injects retro-ext only after its publish criterion", () => {
+  const protocols = central();
+  const started = afterTool(protocols, [], "Skill", { skill: "mattpocock-skills:to-tickets" });
+  assert.match(started, /--- to-tickets /);
+  assert.doesNotMatch(started, /--- retro-ext /);
+  const drafting = onPrompt(protocols, [skillCall("to-tickets"), toolCall("Bash", { command: "gh issue view 13" })]);
+  assert.doesNotMatch(drafting, /--- retro-ext /);
+  const published = afterTool(protocols, [skillCall("to-tickets")], "Bash", { command: "gh issue create --title x --body-file b.md" });
+  assert.match(published, /--- to-tickets /);
+  assert.match(published, /--- retro-ext /);
+  assert.match(published, /GATHERING\.md/);
+});
+
+test("retro-ext receives the session's transcript path", () => {
+  const out = contextFor({ hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: "gh issue create --title x" }, transcript_path: "/s/abc.jsonl" },
+    central(), skillCall("to-tickets"));
+  assert.match(out, /Transcript: \/s\/abc\.jsonl/);
+  assert.doesNotMatch(out, /<transcript-path>/);
+});

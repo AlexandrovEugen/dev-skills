@@ -215,10 +215,15 @@ function afterTool(event, protocols, transcript) {
   return render(names, protocols, { ...after, start: new Map(after.start) }, reason);
 }
 
-export function contextFor(event, protocols, transcript) {
+function rendered(event, protocols, transcript) {
   if (event.hook_event_name === "UserPromptSubmit") return onPrompt(event, protocols, transcript);
   if (event.hook_event_name === "PostToolUse") return afterTool(event, protocols, transcript);
   return undefined;
+}
+
+export function contextFor(event, protocols, transcript) {
+  const context = rendered(event, protocols, transcript);
+  return event.transcript_path ? context?.replaceAll("<transcript-path>", event.transcript_path) : context;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
