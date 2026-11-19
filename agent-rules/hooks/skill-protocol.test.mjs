@@ -1,4 +1,3 @@
-// node --test agent-rules/hooks/skill-protocol.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -13,14 +12,14 @@ function workspace() {
   const root = mkdtempSync(join(tmpdir(), "skill-protocol-"));
   const ws = join(root, ".agent-rules", "skills");
   mkdirSync(ws, { recursive: true });
-  writeFileSync(join(ws, "grilling.md"), managed("grilling", "skill: grilling\nscope: session\nwith: [grilling-ext]", "1. Workspace grilling."));
-  writeFileSync(join(ws, "domain-modeling.md"), managed("domain-modeling", "skill: domain-modeling\nscope: session", "1. Glossary."));
+  writeFileSync(join(ws, "grilling.md"), managed("grilling", "skill: grilling\nwith: [grilling-ext]", "1. Workspace grilling."));
+  writeFileSync(join(ws, "domain-modeling.md"), managed("domain-modeling", "skill: domain-modeling", "1. Glossary."));
   writeFileSync(join(ws, "grill-with-docs.md"),
-    managed("grill-with-docs", "skill: grill-with-docs\nscope: session\nwith: [grilling, domain-modeling]", "Call both."));
+    managed("grill-with-docs", "skill: grill-with-docs\nwith: [grilling, domain-modeling]", "Call both."));
   writeFileSync(join(ws, "research.md"), "---\nskill: research\nkind: side-quest\n---\n# research\n\nResearch steps.\n");
   const repo = join(root, "repo");
   mkdirSync(join(repo, ".agent-rules", "skills"), { recursive: true });
-  writeFileSync(join(repo, ".agent-rules", "skills", "grilling.md"), "---\nskill: grilling\nscope: session\n---\n1. Repo grilling.\n");
+  writeFileSync(join(repo, ".agent-rules", "skills", "grilling.md"), "---\nskill: grilling\n---\n1. Repo grilling.\n");
   return { root, repo };
 }
 
@@ -28,9 +27,9 @@ const skillCall = (skill) => JSON.stringify({ type: "assistant", message: { cont
 const typed = (name) => JSON.stringify({ type: "user", message: { content: `<command-message>${name}</command-message>\n<command-name>/${name}</command-name>` } });
 
 test("parseProtocol drops the marker and reads the header", () => {
-  const [name, p] = parseProtocol("x.md", "x.md", managed("grill-with-docs", "skill: grill-with-docs\nwith: [grilling, domain-modeling]", "Call both."));
+  const [name, p] = parseProtocol("x.md", "x.md", managed("grill-with-docs", "skill: grill-with-docs\nwith: [grilling, retro-ext@gather]", "Call both."));
   assert.equal(name, "grill-with-docs");
-  assert.deepEqual(p.with, ["grilling", "domain-modeling"]);
+  assert.deepEqual(p.with, [{ name: "grilling", step: undefined }, { name: "retro-ext", step: "gather" }]);
   assert.equal(p.sideQuest, false);
   assert.equal(p.body, "# grill-with-docs\n\nCall both.");
 });
@@ -109,8 +108,7 @@ test("the real extension skills load from dev-skills", () => {
 });
 
 test("the central side quests keep the grill's protocols", () => {
-  const central = new URL("../skill-protocols", import.meta.url).pathname;
-  const protocols = loadProtocols([central], loadExtensions(new URL("../../skills", import.meta.url).pathname));
+  const protocols = central();
   for (const quest of ["wait-what", "research", "prototype"]) {
     const out = contextFor({ hook_event_name: "UserPromptSubmit", prompt: `/${quest} x` }, protocols, skillCall("grill-with-docs"));
     assert.match(out, new RegExp(`--- ${quest} `));
@@ -188,33 +186,57 @@ test("an extension tied to the end step loads only at that step", () => {
   assert.doesNotMatch(later, /Publish each ticket/);
 });
 
+test("an extension tied to two steps loads at each of them and at no other", () => {
+  const { root } = workspace();
+  writeFileSync(join(root, ".agent-rules", "skills", "retro.md"), [
+    "---", "skill: retro", "with: [pool-ext@read, pool-ext@change]", "---", "# retro", "",
+    "## Step: gather", "done: Agent", "Gather.", "",
+    "## Step: read", "done: Bash command ~ git show", "Read.", "",
+    "## Step: present", "done: Edit", "Present.", "",
+    "## Step: change", "Change.", "",
+  ].join("\n"));
+  const skills = mkdtempSync(join(tmpdir(), "skills-"));
+  mkdirSync(join(skills, "pool-ext"));
+  writeFileSync(join(skills, "pool-ext", "SKILL.md"), "---\nname: pool-ext\ndescription: x\n---\n# pool-ext\n\nPool how.\n");
+  const protocols = loadProtocols(protocolDirs(root), loadExtensions(skills));
+  const started = [typed("retro")];
+  const gathered = [...started, toolCall("Agent", { prompt: "g" })];
+  const read = [...gathered, toolCall("Bash", { command: "git show x" })];
+  assert.doesNotMatch(onPrompt(protocols, started), /Pool how/);
+  assert.match(onPrompt(protocols, gathered), /Pool how/);
+  assert.doesNotMatch(onPrompt(protocols, read), /Pool how/);
+  assert.match(afterTool(protocols, read, "Edit", { file_path: "x" }), /Change\.\n\n[\s\S]*Pool how/);
+});
+
 test("a Skill call starts its stepped protocol at the first step", () => {
   const out = afterTool(steppedWorkspace(), [], "Skill", { skill: "to-tickets" });
   assert.match(out, /Draft the tickets\./);
   assert.doesNotMatch(out, /Publish each ticket|gathering sub-agent/);
 });
 
-test("the PostToolUse matcher covers every tool a criterion names", () => {
+test("the PostToolUse matcher names exactly Skill and the tools the criteria name", () => {
   const fragment = JSON.parse(readFileSync(new URL("../platforms/claude-code.json", import.meta.url), "utf8"));
-  const matchers = fragment.hooks.PostToolUse.filter((h) => h.hooks.some((c) => c.command.includes("skill-protocol.mjs"))).map((h) => new RegExp(`^(?:${h.matcher})$`));
-  const central = new URL("../skill-protocols", import.meta.url).pathname;
-  const protocols = loadProtocols([central], loadExtensions(new URL("../../skills", import.meta.url).pathname));
-  const tools = new Set(["Skill", ...[...protocols.values()].flatMap((p) => p.steps.map((s) => s.done?.tool)).filter(Boolean)]);
-  for (const tool of tools) assert.ok(matchers.some((m) => m.test(tool)), `${tool} is not in the PostToolUse matcher`);
+  const [hook] = fragment.hooks.PostToolUse.filter((h) => h.hooks.some((c) => c.command.includes("skill-protocol.mjs")));
+  const tools = new Set(["Skill", ...[...central().values()].flatMap((p) => p.steps.map((s) => s.done?.tool)).filter(Boolean)]);
+  assert.deepEqual(hook.matcher.split("|").sort(), [...tools].sort());
 });
 
 function central() {
   return loadProtocols([new URL("../skill-protocols", import.meta.url).pathname], loadExtensions(new URL("../../skills", import.meta.url).pathname));
 }
 
-test("the to-tickets protocol injects retro-ext only after its publish criterion", () => {
+const glossary = toolCall("Read", { file_path: "/w/repo/GLOSSARY.md" });
+
+test("the to-tickets protocol loads publish after the glossary read, and retro-ext after its publish criterion", () => {
   const protocols = central();
   const started = afterTool(protocols, [], "Skill", { skill: "mattpocock-skills:to-tickets" });
-  assert.match(started, /--- to-tickets /);
-  assert.doesNotMatch(started, /--- retro-ext /);
-  const drafting = onPrompt(protocols, [skillCall("to-tickets"), toolCall("Bash", { command: "gh issue view 13" })]);
-  assert.doesNotMatch(drafting, /--- retro-ext /);
-  const published = afterTool(protocols, [skillCall("to-tickets")], "Bash", { command: "gh issue create --title x --body-file b.md" });
+  assert.match(started, /## Step: explore/);
+  assert.doesNotMatch(started, /## Step: publish|--- retro-ext /);
+  assert.equal(afterTool(protocols, [skillCall("to-tickets")], "Bash", { command: "gh issue create --title x" }), undefined);
+  const explored = afterTool(protocols, [skillCall("to-tickets")], "Read", { file_path: "/w/repo/GLOSSARY.md" });
+  assert.match(explored, /## Step: publish/);
+  assert.doesNotMatch(explored, /## Step: explore|--- retro-ext /);
+  const published = afterTool(protocols, [skillCall("to-tickets"), glossary], "Bash", { command: "gh issue create --title x --body-file b.md" });
   assert.match(published, /--- to-tickets /);
   assert.match(published, /--- retro-ext /);
   assert.match(published, /GATHERING\.md/);
@@ -222,42 +244,50 @@ test("the to-tickets protocol injects retro-ext only after its publish criterion
 
 test("retro-ext receives the session's transcript path", () => {
   const out = contextFor({ hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command: "gh issue create --title x" }, transcript_path: "/s/abc.jsonl" },
-    central(), skillCall("to-tickets"));
+    central(), [skillCall("to-tickets"), glossary].join("\n"));
   assert.match(out, /Transcript: \/s\/abc\.jsonl/);
   assert.doesNotMatch(out, /<transcript-path>/);
 });
 
-test("the retro protocol injects only its gather step, with retro-ext, when the dev types it", () => {
+test("the retro protocol starts at its style step when the dev types it", () => {
   const out = contextFor({ hook_event_name: "UserPromptSubmit", prompt: "/mattpocock-skills:retro" }, central(), "");
-  assert.match(out, /--- retro .*\n[\s\S]*## Step: gather/);
-  assert.match(out, /--- retro-ext /);
-  assert.doesNotMatch(out, /## Step: (read|present|change)/);
+  assert.match(out, /--- retro .*\n[\s\S]*## Step: style/);
+  assert.doesNotMatch(out, /--- retro-ext |--- retro-pool-ext |## Step: (gather|read|present|change)/);
 });
 
-test("the retro protocol loads read, present and change on their criteria", () => {
+test("the retro protocol loads gather, read, present and change on their criteria, with their extension skills", () => {
   const protocols = central();
+  const styled = afterTool(protocols, [typed("retro")], "Skill", { skill: "mattpocock-skills:writing-for-agents" });
+  assert.match(styled, /## Step: gather/);
+  assert.match(styled, /--- retro-ext /);
+  assert.doesNotMatch(styled, /--- retro-pool-ext /);
   const started = [typed("retro"), skillCall("writing-for-agents")];
   const gather = { prompt: "Read GATHERING.md in /p/skills/retro-ext and run it." };
   const gathered = afterTool(protocols, started, "Agent", gather);
   assert.match(gathered, /## Step: read/);
+  assert.match(gathered, /--- retro-pool-ext /);
   assert.doesNotMatch(gathered, /--- retro-ext |## Step: (gather|present|change)/);
   const listed = { command: "cd /pool && git show --format= --name-only abc1234 | grep -v '^index.md$' | xargs cat" };
   const read = afterTool(protocols, [...started, toolCall("Agent", gather)], "Bash", listed);
   assert.match(read, /## Step: present/);
   assert.doesNotMatch(read, /## Step: (read|change)/);
   const presented = [...started, toolCall("Agent", gather), toolCall("Bash", listed)];
-  assert.match(onPrompt(protocols, presented), /## Step: present/);
-  assert.equal(afterTool(protocols, presented, "Write", { file_path: "/w/docs/notes.md" }), undefined);
-  const judged = afterTool(protocols, presented, "Write", { file_path: "/w/retro-pool/0007-skipped-publish-step.md" });
-  assert.match(judged, /## Step: change/);
+  assert.match(onPrompt(protocols, presented), /## Step: present[\s\S]*--- retro-pool-ext /);
+  assert.equal(afterTool(protocols, presented, "Write", { file_path: "/w/retro-pool/0007-skipped-publish-step.md" }), undefined);
+  assert.equal(afterTool(protocols, presented, "Edit", { file_path: "/w/docs/notes.md" }), undefined);
+  const judged = afterTool(protocols, presented, "Edit", { file_path: "/w/retro-pool/0007-skipped-publish-step.md" });
+  assert.match(judged, /## Step: change[\s\S]*--- retro-pool-ext /);
   assert.doesNotMatch(judged, /## Step: present/);
 });
 
 const retroAt = (protocols, lines, tool_name, tool_input) => afterTool(protocols, lines, tool_name, tool_input) ?? "";
 
-test("the implement protocol injects retro-ext only after the commit that follows code review", () => {
+test("the implement protocol loads review after tdd, commit after code review, and retro-ext after that commit", () => {
   const protocols = central();
-  assert.doesNotMatch(afterTool(protocols, [], "Skill", { skill: "mattpocock-skills:implement" }), /--- retro-ext /);
+  const started = afterTool(protocols, [], "Skill", { skill: "mattpocock-skills:implement" });
+  assert.match(started, /## Step: build/);
+  assert.doesNotMatch(started, /## Step: review|--- retro-ext /);
+  assert.match(afterTool(protocols, [skillCall("implement")], "Skill", { skill: "mattpocock-skills:tdd" }), /## Step: review/);
   const building = [skillCall("implement"), skillCall("tdd"), toolCall("Bash", { command: "git commit -m slice" })];
   assert.doesNotMatch(retroAt(protocols, building, "Skill", { skill: "mattpocock-skills:code-review" }), /--- retro-ext /);
   const reviewed = [...building, skillCall("mattpocock-skills:code-review")];
@@ -267,11 +297,17 @@ test("the implement protocol injects retro-ext only after the commit that follow
   assert.match(committed, /--- retro-ext /);
 });
 
-test("the implement-spec protocol injects retro-ext only after its cleanup step", () => {
+test("the implement-spec protocol loads each step on its criterion, and retro-ext after its cleanup step", () => {
   const protocols = central();
-  assert.doesNotMatch(afterTool(protocols, [], "Skill", { skill: "mattpocock-skills:implement-spec" }), /--- retro-ext /);
-  const running = [typed("implement-spec"), toolCall("Bash", { command: "git checkout -b spec/13" }), toolCall("Agent", { prompt: "ticket 18" }),
-    toolCall("Bash", { command: "git worktree remove .claude/worktrees/a" })];
+  const started = afterTool(protocols, [], "Skill", { skill: "mattpocock-skills:implement-spec" });
+  assert.match(started, /## Step: read/);
+  assert.doesNotMatch(started, /## Step: branch|--- retro-ext /);
+  const opened = [typed("implement-spec"), toolCall("Bash", { command: "gh issue view 13 --comments" })];
+  assert.match(onPrompt(protocols, opened), /## Step: branch/);
+  const branched = [...opened, toolCall("Bash", { command: "git checkout -b spec/13" })];
+  assert.match(onPrompt(protocols, branched), /## Step: implementers/);
+  const running = [...branched, toolCall("Agent", { prompt: "ticket 18" }), toolCall("Bash", { command: "git worktree remove .claude/worktrees/a" })];
+  assert.match(onPrompt(protocols, running), /## Step: resolve/);
   assert.doesNotMatch(retroAt(protocols, running, "Skill", { skill: "mattpocock-skills:code-review" }), /--- retro-ext /);
   const resolved = [...running, skillCall("code-review"), toolCall("Bash", { command: "gh issue close 18" })];
   assert.doesNotMatch(onPrompt(protocols, resolved), /--- retro-ext /);
@@ -280,10 +316,13 @@ test("the implement-spec protocol injects retro-ext only after its cleanup step"
   assert.match(cleaned, /--- retro-ext /);
 });
 
-test("the triage protocol injects retro-ext only after the outcome is applied", () => {
+test("the triage protocol loads apply after the issue is read, and retro-ext after the outcome is applied", () => {
   const protocols = central();
-  assert.doesNotMatch(afterTool(protocols, [], "Skill", { skill: "mattpocock-skills:triage" }), /--- retro-ext /);
+  const started = afterTool(protocols, [], "Skill", { skill: "mattpocock-skills:triage" });
+  assert.match(started, /## Step: context/);
+  assert.doesNotMatch(started, /## Step: apply|--- retro-ext /);
   const triaging = [typed("triage"), toolCall("Bash", { command: "gh issue view 42 --comments" })];
+  assert.match(onPrompt(protocols, triaging), /## Step: apply/);
   assert.doesNotMatch(onPrompt(protocols, triaging), /--- retro-ext /);
   assert.equal(afterTool(protocols, triaging, "Bash", { command: "gh issue list --label needs-triage" }), undefined);
   const applied = afterTool(protocols, triaging, "Bash", { command: "gh issue edit 42 --add-label ready-for-agent" });
@@ -291,14 +330,12 @@ test("the triage protocol injects retro-ext only after the outcome is applied", 
   assert.match(applied, /--- retro-ext /);
 });
 
-test("the diagnosing-bugs protocol injects retro-ext only after its cleanup checklist", () => {
+test("the diagnosing-bugs protocol injects retro-ext only after the commit that closes its cleanup checklist", () => {
   const protocols = central();
   assert.doesNotMatch(afterTool(protocols, [], "Skill", { skill: "mattpocock-skills:diagnosing-bugs" }), /--- retro-ext /);
-  const fixing = [skillCall("diagnosing-bugs"), toolCall("Bash", { command: "node --test | grep DEBUG-a4f2" }), toolCall("Bash", { command: "git commit -m 'regression test'" })];
-  assert.doesNotMatch(retroAt(protocols, fixing, "Bash", { command: "grep -rn 'DEBUG-a4f2' src" }), /--- retro-ext /);
-  const cleaned = [...fixing, toolCall("Bash", { command: "grep -rn 'DEBUG-a4f2' src" })];
-  assert.doesNotMatch(onPrompt(protocols, cleaned), /--- retro-ext /);
-  const committed = afterTool(protocols, cleaned, "Bash", { command: "git commit -m 'Fix: cause was X'" });
+  const fixing = [skillCall("diagnosing-bugs"), toolCall("Bash", { command: "node --test | grep DEBUG-a4f2" }), toolCall("Bash", { command: "grep -rn 'DEBUG-a4f2' src" })];
+  assert.doesNotMatch(onPrompt(protocols, fixing), /--- retro-ext /);
+  const committed = afterTool(protocols, fixing, "Bash", { command: "git commit -m 'Fix: cause was X'" });
   assert.match(committed, /--- diagnosing-bugs /);
   assert.match(committed, /--- retro-ext /);
 });

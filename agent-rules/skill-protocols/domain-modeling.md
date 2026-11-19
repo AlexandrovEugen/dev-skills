@@ -1,7 +1,6 @@
 <!-- managed by dev-skills: agent-rules/skill-protocols/domain-modeling.md -->
 ---
 skill: domain-modeling
-scope: session
 with: [domain-modeling-ext]
 ---
 # domain-modeling

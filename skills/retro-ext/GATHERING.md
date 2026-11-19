@@ -9,13 +9,13 @@ Compute the pool's place from `Workspace` as `retro-pool.md` says under Place. W
 ## 2. Read the session
 
 1. Read the transcript, a JSON Lines file. The session id is its file name without `.jsonl`.
-2. Read every subagent transcript of the session too: each `subagents/agent-*.jsonl` in the folder named like the session id, beside the transcript.
+2. Read every sub-agent transcript of the session too: each `subagents/agent-*.jsonl` in the folder named like the session id, beside the transcript.
 3. Read the active skill's protocol: `.agent-rules/skills/<active skill>.md` in `Workspace`, or the nearest such file above it. Read each extension skill its `with:` line names, in `.agent-rules/dev-skills/skills/<name>/SKILL.md` of `Workspace`.
 4. Read the rules the session ran under: `CLAUDE.md` and `AGENTS.md` of `Workspace` and of each repository the session worked in.
 
 ## 3. Find occurrences
 
-Find every occurrence of three kinds, in the main transcript and the subagent transcripts:
+Find every occurrence of three kinds, in the main transcript and the sub-agent transcripts:
 
 - **Problem**: something that went wrong in agents' work: an error, a wrong result, a retry, a refusal, a correction by the dev.
 - **Good practice**: something that went well and that a later change could lose.
@@ -25,8 +25,8 @@ For each, note what happened, its cause, and the step or rule it broke or kept, 
 
 Count each occurrence once per session:
 
-- A refusal is a tool result that says the permission system or its classifier denied or blocked the call. It counts once, also when a subagent's refusal comes back again inside its parent's Agent result, and when the same call is retried and refused again.
-- The same problem in the main transcript and a subagent transcript is one occurrence with the count of both.
+- A refusal is a tool result that says the permission system or its classifier denied or blocked the call. It counts once, also when a sub-agent's refusal comes back again inside its parent's Agent result, and when the same call is retried and refused again.
+- The same problem in the main transcript and a sub-agent transcript is one occurrence with the count of both.
 - The count is the number of times it happened in this session.
 
 ## 4. Match entries
