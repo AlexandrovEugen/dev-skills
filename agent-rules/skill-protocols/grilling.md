@@ -1,7 +1,6 @@
 <!-- managed by dev-skills: agent-rules/skill-protocols/grilling.md -->
 ---
 skill: grilling
-scope: session
 with: [grilling-ext]
 ---
 # grilling

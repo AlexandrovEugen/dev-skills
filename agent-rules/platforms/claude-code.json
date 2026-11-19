@@ -51,7 +51,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Skill",
+        "matcher": "Skill|Agent|Bash|Edit|Read",
         "hooks": [
           {
             "type": "command",
