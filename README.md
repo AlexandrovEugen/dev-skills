@@ -8,6 +8,8 @@ Personal agent skills and portable agent rules for software engineering.
 | [`sandbox-setup`](skills/sandbox-setup/SKILL.md) | Sets up any project, from an archive, a remote repo or a local folder, as a Docker sandbox: every repo it needs connected, a mock for everything outside, one container where an agent works on it, and a README that says how to use it. |
 | [`grilling-ext`](skills/grilling-ext/SKILL.md) | Extension skill for `grilling`: options, a worked example and a `Checked:` line in every question, and how a grill keeps its rulings. A Stop hook enforces the round format. |
 | [`domain-modeling-ext`](skills/domain-modeling-ext/SKILL.md) | Extension skill for `domain-modeling`: rules for glossary entries, with a check script, and for ADRs. |
+| [`retro-ext`](skills/retro-ext/SKILL.md) | Extension skill for the session skills: at a skill's end step, one sub-agent gathers the session's problems and good practices into the Retro pool. |
+| [`retro-pool-ext`](skills/retro-pool-ext/SKILL.md) | Extension skill for `retro`: reads the gathered entries of the Retro pool, records the dev's judgement, and records the accepted changes in the pool. |
 | [`workspace`](skills/workspace/SKILL.md) | Sets up a complete workspace (steering, rules, protocols, hooks and settings), pushes a change of its shared rules to this repository through a pull request, and syncs every registered workspace. |
 
 ## Portable rules

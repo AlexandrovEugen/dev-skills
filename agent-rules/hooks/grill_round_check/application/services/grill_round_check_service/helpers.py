@@ -48,7 +48,13 @@ def option_letters(block: QuestionBlock) -> list[str]:
 
 
 def asked_text(block: QuestionBlock) -> str:
-    return " ".join(QUESTION_HEAD.sub("", " ".join(block.lines), count=1).split())
+    lines = [line for line in block.lines if not CHECKED.match(line) and not REWRITTEN.match(line)]
+    return " ".join(QUESTION_HEAD.sub("", " ".join(lines), count=1).split())
+
+
+def rewritten_line(block: QuestionBlock | None) -> str | None:
+    lines = [" ".join(line.split()) for line in block.lines if REWRITTEN.match(line)] if block else []
+    return lines[-1] if lines else None
 
 
 def title_of(block: QuestionBlock) -> str | None:
@@ -94,7 +100,9 @@ def block_failures(block: QuestionBlock, previous: QuestionBlock | None) -> list
         failures.append(
             f"{label} is new and has no `Checked:` line naming the ADRs, glossary entries and rulings it was tested against"
         )
-    if previous is not None and asked_text(block) != asked_text(previous) and not any(REWRITTEN.match(line) for line in block.lines):
+    rewritten = rewritten_line(block)
+    excused = rewritten is not None and rewritten != rewritten_line(previous)
+    if previous is not None and asked_text(block) != asked_text(previous) and not excused:
         failures.append(
             f"{label} differs from when it was asked last, and has no `Rewritten:` line that says what changed"
         )

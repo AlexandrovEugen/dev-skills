@@ -1,8 +1,3 @@
-// Claude Code hook for UserPromptSubmit and PostToolUse.
-// Adds the protocols of the skills active in the session to the agent's context, one step at a time.
-// Protocols come from every `.agent-rules/skills/` from the session's cwd up to `/`; the nearest wins per skill.
-// An extension skill, `skills/<name>-ext/SKILL.md` in dev-skills, is added when a protocol names it in `with:`.
-//   echo '<hook event JSON>' | node skill-protocol.mjs
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,13 +36,15 @@ export function parseProtocol(file, path, text) {
     }
     body = body.slice(end + 4);
   }
-  const entries = (meta.get("with") ?? "").replace(/^\[|\]$/g, "").split(",").map((c) => c.trim()).filter(Boolean);
-  const ties = new Map(entries.filter((e) => e.includes("@")).map((e) => e.split("@").map((s) => s.trim())));
+  const companions = (meta.get("with") ?? "").replace(/^\[|\]$/g, "").split(",").map((c) => c.trim()).filter(Boolean)
+    .map((c) => {
+      const [name, step] = c.split("@").map((s) => s.trim());
+      return { name, step };
+    });
   body = body.trim();
   return [meta.get("skill") ?? basename(file, ".md"), {
     sideQuest: meta.get("kind") === "side-quest",
-    with: entries.map((e) => e.split("@")[0].trim()),
-    ties,
+    with: companions,
     body,
     ...parseSteps(body),
     path,
@@ -70,7 +67,7 @@ export function loadExtensions(skillsDir) {
     const path = join(skillsDir, dir, "SKILL.md");
     if (!existsSync(path)) continue;
     const [, protocol] = parseProtocol(dir, path, readFileSync(path, "utf8"));
-    extensions.set(dir, { ...protocol, sideQuest: false, with: [], ties: new Map() });
+    extensions.set(dir, { ...protocol, sideQuest: false, with: [] });
   }
   return extensions;
 }
@@ -90,7 +87,7 @@ export function loadProtocols(dirs, extensions = new Map()) {
 function expand(name, protocols, seen = []) {
   if (seen.includes(name)) return seen;
   seen.push(name);
-  for (const companion of protocols.get(name)?.with ?? []) expand(companion, protocols, seen);
+  for (const companion of protocols.get(name)?.with ?? []) expand(companion.name, protocols, seen);
   return seen;
 }
 const isSideQuest = (name, protocols) => protocols.get(name)?.sideQuest === true;
@@ -161,8 +158,8 @@ function currentStep(name, protocols, state) {
 }
 
 function visible(name, names, protocols, state) {
-  const owners = names.filter((n) => protocols.get(n)?.ties.has(name));
-  return owners.length === 0 || owners.some((n) => currentStep(n, protocols, state)?.name === protocols.get(n).ties.get(name));
+  const ties = names.flatMap((owner) => (protocols.get(owner)?.with ?? []).filter((c) => c.name === name).map((c) => ({ owner, step: c.step })));
+  return ties.length === 0 || ties.some(({ owner, step }) => step === undefined || currentStep(owner, protocols, state)?.name === step);
 }
 
 function text(name, protocols, state) {
@@ -205,18 +202,15 @@ function afterTool(event, protocols, transcript) {
   const before = { ...state, calls: state.calls.filter((c) => id === undefined || c.id !== id) };
   const after = { ...before, calls: [...before.calls, { id, name: event.tool_name, input: event.tool_input ?? {} }] };
   const stepOf = (n, s) => currentStep(n, protocols, s)?.name;
-  const advanced = state.active.filter((n) => protocols.has(n) && protocols.get(n).steps.length > 0 && stepOf(n, before) !== stepOf(n, after));
-  const tied = advanced.flatMap((n) => [...protocols.get(n).ties].filter(([, step]) => step === stepOf(n, after)).map(([ext]) => ext));
-  let names = [...advanced, ...tied];
-  let reason = `step done: ${advanced.join(", ")}`;
-  if (event.tool_name === "Skill") {
-    const name = short(event.tool_input?.skill ?? "");
-    const invoked = expand(name, protocols);
-    for (const n of invoked) after.start.set(n, after.calls.length);
-    names = [...invoked, ...names.filter((n) => !invoked.includes(n))];
-    reason = `just invoked: ${name}`;
-  }
-  return render(names, protocols, { ...after, start: new Map(after.start) }, reason);
+  const advanced = state.active.filter((n) => protocols.has(n) && stepOf(n, before) !== stepOf(n, after));
+  const tied = advanced.flatMap((n) => protocols.get(n).with.filter((c) => c.step !== undefined && c.step === stepOf(n, after)).map((c) => c.name));
+  if (event.tool_name !== "Skill") return render([...advanced, ...tied], protocols, after, `step done: ${advanced.join(", ")}`);
+  const name = short(event.tool_input?.skill ?? "");
+  const invoked = expand(name, protocols);
+  const start = new Map(after.start);
+  for (const n of invoked) start.set(n, after.calls.length);
+  const names = [...invoked, ...[...advanced, ...tied].filter((n) => !invoked.includes(n))];
+  return render(names, protocols, { ...after, start }, `just invoked: ${name}`);
 }
 
 function rendered(event, protocols, transcript) {

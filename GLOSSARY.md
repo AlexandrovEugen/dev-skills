@@ -54,6 +54,26 @@ _Avoid_: candidate, finding
 Something that went well in agents' work, kept across retrospectives so that its loss after a change shows.
 _Avoid_: keep
 
+**Sub-agent**:
+An agent that another agent starts with a fresh context for one task, and that reports back to it.
+_Avoid_: subagent
+
+**Occurrence**:
+One record that a problem or good practice happened in one session, with how many times it happened there.
+_Avoid_: hit, event
+
+**Entry**:
+The record of one problem or good practice, with its state and all its occurrences.
+_Avoid_: item, card
+
 **Retro pool**:
 The store of every problem and good practice gathered from sessions, one entry each, that a retrospective draws on to propose a fix.
 _Avoid_: concern pool, memory
+
+**Verdict**:
+The comparison of an entry's latest occurrence count with the count of the occurrence before it: better, worse or same.
+_Avoid_: score
+
+**Graduation**:
+The change of a fixed problem into a good practice, once its last three occurrences each count zero.
+_Avoid_: promotion
