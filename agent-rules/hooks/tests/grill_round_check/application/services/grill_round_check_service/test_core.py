@@ -63,21 +63,35 @@ class TestGrillRoundCheckService:
         assert json.loads(reply)["decision"] == "block"
         assert expected in json.loads(reply)["reason"]
 
-    def test_blocks_a_question_shorter_than_when_it_was_asked_last(self, tmp_path: Path) -> None:
+    def test_passes_a_question_sent_again_word_for_word(self, tmp_path: Path) -> None:
         # given
-        shorter = FULL_QUESTION.replace(" It keeps what the code does today.", " It keeps the code.")
-        transcript = a_grill_transcript(tmp_path, a_round(FULL_QUESTION), a_round(shorter))
+        transcript = a_grill_transcript(tmp_path, a_round(FULL_QUESTION), a_round(FULL_QUESTION))
 
         # when
         reply = GrillRoundCheckService(TranscriptRepository()).reply(a_stop_payload(transcript))
 
         # then
-        assert "Q3 is shorter than when it was asked last" in json.loads(reply)["reason"]
+        assert reply == ""
 
-    def test_passes_a_shorter_question_that_says_why_it_was_rewritten(self, tmp_path: Path) -> None:
+    def test_blocks_a_same_length_question_with_one_changed_word(self, tmp_path: Path) -> None:
         # given
-        rewritten = FULL_QUESTION.replace(" It keeps what the code does today.", " It keeps the code.").replace(
-            "Example:", "Rewritten: the 2 options now cite R46.\n\nExample:"
+        changed = FULL_QUESTION.replace("It keeps what the code does today.", "It keeps what the code does always.")
+        transcript = a_grill_transcript(tmp_path, a_round(FULL_QUESTION), a_round(changed))
+
+        # when
+        reply = GrillRoundCheckService(TranscriptRepository()).reply(a_stop_payload(transcript))
+
+        # then
+        assert json.loads(reply)["decision"] == "block"
+        assert (
+            "Q3 differs from when it was asked last, and has no `Rewritten:` line that says what changed"
+            in json.loads(reply)["reason"]
+        )
+
+    def test_passes_a_changed_question_that_says_what_was_rewritten(self, tmp_path: Path) -> None:
+        # given
+        rewritten = FULL_QUESTION.replace("- **(b)** Three repairs", "- **(b)** Two repairs").replace(
+            "Example:", "Rewritten: option (b) now gives 2 repairs, not 3; letters (a) and (b) stay.\n\nExample:"
         )
         transcript = a_grill_transcript(tmp_path, a_round(FULL_QUESTION), a_round(rewritten))
 
