@@ -47,8 +47,8 @@ def option_letters(block: QuestionBlock) -> list[str]:
     return [option.group(1) for line in block.lines if (option := OPTION.match(line))]
 
 
-def word_count(block: QuestionBlock) -> int:
-    return len(" ".join(block.lines).split())
+def asked_text(block: QuestionBlock) -> str:
+    return " ".join(QUESTION_HEAD.sub("", " ".join(block.lines), count=1).split())
 
 
 def title_of(block: QuestionBlock) -> str | None:
@@ -94,8 +94,10 @@ def block_failures(block: QuestionBlock, previous: QuestionBlock | None) -> list
         failures.append(
             f"{label} is new and has no `Checked:` line naming the ADRs, glossary entries and rulings it was tested against"
         )
-    if previous is not None and word_count(block) < word_count(previous) and not any(REWRITTEN.match(line) for line in block.lines):
-        failures.append(f"{label} is shorter than when it was asked last, and has no `Rewritten:` line that says why")
+    if previous is not None and asked_text(block) != asked_text(previous) and not any(REWRITTEN.match(line) for line in block.lines):
+        failures.append(
+            f"{label} differs from when it was asked last, and has no `Rewritten:` line that says what changed"
+        )
     return failures
 
 
